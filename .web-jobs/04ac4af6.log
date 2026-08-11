@@ -1,0 +1,10 @@
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+actual capture written to /home/yiannis/side/dimensional/boundary-audit/runs/2026-08-11T18-15-46Z_rpi_actual
+bash: warning: setlocale: LC_ALL: cannot change locale (en_US.UTF-8): No such file or directory
+/Users/yiannisha/side/dimensional/boundary-audit/runs/2026-08-11T18-15-46Z_rpi_actual/report.html
+dashboard.html
+live run: /Users/yiannisha/side/dimensional/boundary-audit/runs/2026-08-11T18-15-46Z_rpi_actual
+dashboard: /Users/yiannisha/side/dimensional/boundary-audit/dashboard.html

@@ -1,0 +1,6 @@
+name: camera
+category: perception
+timing: {baseline_seconds: 1, observation_seconds: 2, cooldown_seconds: 0.2}
+repeats: 3
+action: {operation: camera_start, parameters: {}}
+success: {http_status: 200}

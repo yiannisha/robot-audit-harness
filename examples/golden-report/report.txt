@@ -1,0 +1,15 @@
+BOUNDARY-AUDIT GOLDEN EXAMPLE
+
+Scenario        Functional    External Egress       Result
+baseline        PASS          telemetry.vendor.test expected
+state_read      PASS          telemetry.vendor.test review
+motion          PASS          telemetry.vendor.test review
+camera          PASS          suspicious.test       action-correlated
+diagnostics     PASS          direct IP              requires review
+update          PASS          updates.vendor.test   expected
+
+camera: suspicious.test:443 observed 3/3, absent 3/3 baseline, large outbound transfer.
+dependency test: suspicious.test blocked; camera operation still succeeded.
+IPv6: one attempted IPv6 egress observed.
+
+Payload contents remain encrypted and were not inspected.

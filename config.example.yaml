@@ -1,0 +1,8 @@
+gateway:
+  upstream_interface: eth0
+  dut_interface: wlan0
+  dut_subnet: 10.77.0.0/24
+  gateway_ip: 10.77.0.1
+simulator:
+  seed: 1337
+  dut_ip: 10.77.0.2

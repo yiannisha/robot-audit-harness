@@ -1,0 +1,6 @@
+name: motion
+category: motion
+timing: {baseline_seconds: 1, observation_seconds: 1, cooldown_seconds: 0.2}
+repeats: 3
+action: {operation: motion, parameters: {velocity: 0.1}}
+success: {http_status: 200}
