@@ -13,7 +13,20 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "dut_subnet": "10.77.0.0/24",
         "gateway_ip": "10.77.0.1",
     },
-    "simulator": {"seed": 1337, "dut_ip": "10.77.0.2"},
+    "dut": {
+        "network_enabled": True,
+        "local_port": 7447,
+        "grpc_bind": "0.0.0.0",
+        "grpc_port": 50051,
+        "capabilities": "all",
+        "endpoints": {
+            "time_sync": {"host": "pool.ntp.org", "port": 123, "protocol": "udp"},
+            "discovery": {"host": "example.com", "port": 443, "tls": True},
+            "authentication": {"host": "example.com", "port": 443, "tls": True},
+            "updates": {"host": "example.com", "port": 443, "tls": True},
+            "telemetry": {"host": "example.com", "port": 443, "tls": True},
+        },
+    },
 }
 
 
@@ -36,4 +49,3 @@ def load_config(path: Path = Path("config.yaml")) -> Dict[str, Any]:
         else:
             result[key] = value
     return result
-

@@ -1,7 +1,7 @@
 """Linux namespace lifecycle primitives.
 
 Commands are argument arrays and resource names are validated. The backend is
-not auto-run by the deterministic simulator; use it on a Linux host with
+not auto-run by the DUT simulator; use it on a Linux host with
 root/CAP_NET_ADMIN after reviewing the topology.
 """
 

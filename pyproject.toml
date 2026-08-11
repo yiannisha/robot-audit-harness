@@ -5,7 +5,7 @@ description = "Differential network-behavior auditing for black-box IoT and robo
 readme = "README.md"
 requires-python = ">=3.9"
 license = {file = "LICENSE"}
-dependencies = ["pydantic>=1.10,<3", "PyYAML>=6.0", "typer>=0.9"]
+dependencies = ["pydantic>=1.10,<3", "PyYAML>=6.0", "typer>=0.9", "grpcio>=1.60,<2", "protobuf>=4.25,<7"]
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.5", "mypy>=1.8"]

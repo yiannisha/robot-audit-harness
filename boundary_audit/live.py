@@ -77,9 +77,8 @@ def extract_flows(run_dir: Path, dut_ip: Optional[str] = None) -> List[Dict[str,
         if not record["scenario_ids"]:
             scenario = _scenario_for(record["first_seen_epoch"], events)
             record["scenario_ids"].append(scenario)
-            roles = {"camera_start": "suspicious.test", "diagnostics": "direct-ip-endpoint",
-                     "update_check": "updates.vendor.test", "reset": "time.vendor.test",
-                     "motion": "local-control-telemetry"}
+            roles = {"camera_stream": "suspicious.test", "read_firmware_version": "firmware-service",
+                     "boot": "time-and-robot-services", "stand": "local-control-telemetry"}
             record["endpoint_role"] = roles.get(scenario, "mock_sink")
     for record in flows.values():
         record["first_seen"] = datetime.fromtimestamp(record.pop("first_seen_epoch"), timezone.utc).isoformat()

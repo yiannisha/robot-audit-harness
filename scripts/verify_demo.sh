@@ -11,6 +11,6 @@ for run in runs:
     seen.update(analysis["scenarios"])
     for name in ("metadata.json", "events.jsonl", "packets.pcap", "dns.jsonl", "tls.jsonl", "firewall.jsonl", "flows.json", "analysis.json", "report.html", "report.txt"):
         assert (run / name).exists(), f"missing {name}"
-assert {"baseline", "camera", "diagnostics", "ipv6", "local_discovery", "update"} <= seen
+assert {"boot", "camera_stream", "read_robot_state", "stand", "shutdown"} <= seen
 print(json.dumps({"ok": True, "runs": len(runs), "scenarios": sorted(seen)}))
 PY

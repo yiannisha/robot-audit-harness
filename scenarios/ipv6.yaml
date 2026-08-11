@@ -1,6 +1,0 @@
-name: ipv6
-category: background
-timing: {baseline_seconds: 1, observation_seconds: 1, cooldown_seconds: 0.2}
-repeats: 3
-action: {operation: ipv6_probe, parameters: {}}
-success: {http_status: 200}

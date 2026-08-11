@@ -43,23 +43,29 @@ The virtual backend and analysis pipeline are the supported reproducible path in
 
 See [docs/architecture.md](docs/architecture.md), [docs/methodology.md](docs/methodology.md), [docs/threat-model.md](docs/threat-model.md), [docs/demo.md](docs/demo.md), and [docs/raspberry-pi.md](docs/raspberry-pi.md).
 
-For a real fake DUT running on the Raspberry Pi with the laptop receiving
-synthetic traffic and retaining the Pi's PCAP, see
-[docs/rpi-live-capture.md](docs/rpi-live-capture.md).
-
-The one-command remote workflow is:
+Run the black-box DUT process on the machine being observed:
 
 ```bash
-BA_REMOTE_HOST=yiannis@192.168.1.168 \
-BA_REMOTE_DIR='~/side/dimensional/boundary-audit' \
-BA_SINK_HOST=192.168.1.163 \
-./scripts/remote_demo.sh
+python3 -m boundary_audit.dut_simulator
 ```
 
-It starts the laptop sink, starts the generic fake DUT remotely, captures
-actual egress, pulls the immutable run, derives flows/reports from the PCAP,
-and regenerates `dashboard.html` across all retained runs. SSH keys are
-recommended; otherwise SSH will prompt for the remote password.
+It accepts JSON-line SDK actions on stdin and performs local control traffic
+plus configured real service calls. Capture the host externally with the
+Linux backend or an independently controlled gateway.
+
+For remote SDK control from another device on the same network:
+
+```bash
+python3 -m boundary_audit.grpc_sdk --bind 0.0.0.0 --port 50051
+```
+
+```python
+from boundary_audit.grpc_sdk import DutGrpcClient
+
+robot = DutGrpcClient("robot-host:50051")
+print(robot.capabilities())
+robot.execute("stand", category="motion")
+```
 
 For live monitoring and run deployment from a browser:
 
@@ -75,7 +81,8 @@ non-interactive SSH authentication such as an SSH key or agent.
 
 ## Example finding
 
-The simulator's camera action produces a repeatable large flow to `suspicious.test`; diagnostics demonstrates a direct-IP flow without DNS evidence; update checking is an expected hostname-attributed TLS flow; and a separate IPv6 attempt is reported. These are synthetic lab findings, not claims about a vendor device.
+The virtual backend exercises the capability matrix. It is a development
+observer; authoritative findings require capture outside the DUT process.
 
 ## Future adapters
 

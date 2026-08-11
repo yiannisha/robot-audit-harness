@@ -40,20 +40,7 @@ class WebState:
         log_path = self.jobs / (job_id + ".log")
         env = os.environ.copy()
         if backend == "remote":
-            remote = str(config.get("remote_host", ""))
-            remote_dir = str(config.get("remote_dir", ""))
-            sink = str(config.get("sink_host", ""))
-            external_host = str(config.get("external_host", ""))
-            capture_if = str(config.get("capture_if", "eth0"))
-            if not (_SAFE_REMOTE.match(remote) and _SAFE_PATH.match(remote_dir)
-                    and _SAFE_REMOTE.match(sink) and (not external_host or _SAFE_REMOTE.match(external_host))
-                    and _SAFE_REMOTE.match(capture_if)):
-                raise ValueError("invalid remote deployment configuration")
-            command = ["bash", str(self.root / "scripts" / "remote_demo.sh")]
-            env.update({"BA_REMOTE_HOST": remote, "BA_REMOTE_DIR": remote_dir,
-                        "BA_SINK_HOST": sink, "BA_EXTERNAL_HOST": external_host,
-                        "BA_CAPTURE_IF": capture_if,
-                        "BA_NONINTERACTIVE": "1"})
+            raise ValueError("remote DUT workflow was removed; run the DUT on the capture host directly")
         else:
             scenario = str(config.get("scenario", "full_matrix"))
             mode = str(config.get("mode", "observe"))
@@ -102,12 +89,7 @@ a{color:#075985;text-decoration:none}code{background:#eef2f5;padding:2px 4px;bor
 </style></head><body><main><h1>boundary-audit live</h1>
 <p class='sub'>Live run control and evidence explorer. Refreshes every two seconds.</p>
 <section class='panel'><h2>Deploy a run</h2><form id='deploy'>
-<select id='backend'><option value='remote'>Remote device</option><option value='virtual'>Virtual backend</option></select>
-<input id='remote_host' placeholder='user@device-host' value='yiannis@192.168.1.168'>
-<input id='remote_dir' placeholder='remote project directory' value='~/side/dimensional/boundary-audit'>
-<input id='sink_host' placeholder='laptop sink IP' value='192.168.1.163'>
-<input id='external_host' placeholder='optional external IP, e.g. 1.1.1.1'>
-<input id='capture_if' placeholder='capture interface' value='eth0'>
+<input type='hidden' id='backend' value='virtual'>
 <input id='scenario' placeholder='virtual scenario' value='full_matrix'>
 <select id='mode'><option>observe</option><option>airgap</option><option>enforce</option></select>
 <button>Start run</button></form><div id='jobs' class='muted'></div></section>
@@ -124,7 +106,7 @@ function metric(label,value){return "<div class='card'><div class='muted'>"+esc(
 function drawBars(flows){let by={};for(const f of flows)for(const s of (f.scenario_ids||['unattributed']))by[s]=(by[s]||0)+(f.bytes_out||0);let a=Object.entries(by).sort((x,y)=>y[1]-x[1]),m=Math.max(1,...a.map(x=>x[1]));return "<svg viewBox='0 0 900 "+(70+a.length*38)+"' width='100%'>"+a.map((x,i)=>{let y=30+i*38,w=Math.max(3,600*x[1]/m);return "<text x='0' y='"+(y+16)+"'>"+esc(x[0])+"</text><rect x='180' y='"+y+"' width='"+w+"' height='20' rx='4' class='bar'/><text x='"+(190+w)+"' y='"+(y+16)+"'>"+x[1].toLocaleString()+" B</text>"}).join("")+"</svg>"}
 function drawDestinations(flows){let by={};for(const f of flows){let k=f.endpoint_role||f.remote_ip;by[k]=(by[k]||0)+(f.bytes_out||0)}return Object.entries(by).sort((a,b)=>b[1]-a[1]).map(x=>"<tr><td><code>"+esc(x[0])+"</code></td><td>"+x[1].toLocaleString()+" B</td></tr>").join("")}
 async function refresh(){let data=await get("/api/runs"),jobs=await get("/api/jobs"),latest=data[0]||{flows:[],bytes_out:0};document.querySelector("#metrics").innerHTML=metric("Retained runs",data.length)+metric("Total bytes out",data.reduce((a,x)=>a+x.bytes_out,0).toLocaleString())+metric("Destinations",new Set(data.flatMap(x=>x.flows.map(f=>f.remote_ip))).size)+metric("Active jobs",jobs.filter(x=>x.status==="running").length);document.querySelector("#jobs").innerHTML=jobs.map(x=>"<div class='job'>"+esc(x.id)+" — "+esc(x.backend)+" — <strong>"+esc(x.status)+"</strong> <code>"+esc(x.log)+"</code></div>").join("");document.querySelector("#latest").innerHTML="<strong>"+esc(latest.id||"No runs")+"</strong> · "+esc(latest.metadata?.backend||"")+" · "+esc(latest.metadata?.scenario||"")+" · <a href='/runs/"+encodeURIComponent(latest.id||"")+"/report.html'>open report</a> · <a href='/runs/"+encodeURIComponent(latest.id||"")+"/packets.pcap'>PCAP</a>";document.querySelector("#findings").innerHTML=(latest.findings||[]).map(f=>"<tr><td>"+esc(f.scenario)+"</td><td><strong>"+esc(f.role)+"</strong></td><td><code>"+esc(f.physical_ip)+"</code></td><td>"+Number(f.bytes_out).toLocaleString()+"</td><td>"+esc(f.reason)+"</td></tr>").join("")||"<tr><td colspan='5' class='muted'>No adversarial finding flags in this run.</td></tr>";document.querySelector("#charts").innerHTML="<h3>Bytes out by action</h3>"+drawBars(latest.flows||[])+"<h3>Bytes out by destination role</h3><table><tr><th>Role</th><th>Bytes</th></tr>"+drawDestinations(latest.flows||[])+"</table>";let layers=latest.layers||{};document.querySelector("#layers").innerHTML=Object.entries(layers).map(([k,v])=>{let detail=Object.entries(v).filter(x=>x[0]!=="status").map(x=>x[0]+"="+x[1]).join(" · ");return "<span class='layer "+(v.status==="not_collected"?"missing":"")+"' title='"+esc(JSON.stringify(v))+"'><strong>"+esc(k)+"</strong>: "+esc(v.status)+(detail?" · "+esc(detail):"")+"</span>"}).join("")||"<span class='muted'>No layer data yet.</span>";document.querySelector("#runs").innerHTML=data.map(x=>"<tr><td><a href='/runs/"+encodeURIComponent(x.id)+"/report.html'>"+esc(x.id)+"</a></td><td>"+esc(x.metadata?.backend||"")+"</td><td>"+esc(x.metadata?.scenario||"")+"</td><td>"+x.flows.length+"</td><td>"+x.bytes_out.toLocaleString()+"</td><td><a href='/runs/"+encodeURIComponent(x.id)+"/packets.pcap'>PCAP</a></td></tr>").join("")}
-document.querySelector("#deploy").addEventListener("submit",async e=>{e.preventDefault();let body={backend:backend.value,remote_host:remote_host.value,remote_dir:remote_dir.value,sink_host:sink_host.value,external_host:external_host.value,capture_if:capture_if.value,scenario:scenario.value,mode:mode.value};let r=await fetch("/api/deploy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});if(!r.ok)alert(await r.text());refresh()});refresh();setInterval(refresh,2000);
+document.querySelector("#deploy").addEventListener("submit",async e=>{e.preventDefault();let body={backend:"virtual",scenario:scenario.value,mode:mode.value};let r=await fetch("/api/deploy",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});if(!r.ok)alert(await r.text());refresh()});refresh();setInterval(refresh,2000);
 </script></body></html>"""
 
 

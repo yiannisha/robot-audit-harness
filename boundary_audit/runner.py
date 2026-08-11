@@ -14,7 +14,6 @@ from typing import List
 from .analysis import classify_scope, differential, generate_policy
 from .device import DeviceAdapter
 from .models import DnsObservation, Event, Flow, NetworkMode, RunMetadata, TlsObservation
-from .simulator import GROUND_TRUTH
 
 
 def _write_jsonl(path: Path, values: List[object]) -> None:
@@ -25,28 +24,48 @@ def _write_jsonl(path: Path, values: List[object]) -> None:
             handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
 
 
-class VirtualEvidence:
+class VirtualGateway:
+    """A gateway-side test observer for the unprivileged virtual backend.
+
+    The real backend observes packets outside the DUT.  This provider is only
+    used when no network namespace or packet capture is available; it models
+    the gateway's view, not the DUT's API response.
+    """
+
+    NETWORK_BEHAVIOR = {
+        "baseline": [("telemetry.vendor.test", "198.18.0.9", 443, 240)],
+        "boot": [("time.vendor.test", "198.18.0.10", 123, 96),
+                 ("telemetry.vendor.test", "198.18.0.9", 443, 180)],
+        "state_read": [("telemetry.vendor.test", "198.18.0.9", 443, 96)],
+        "motion": [("telemetry.vendor.test", "198.18.0.9", 443, 128)],
+        "camera_stream": [("suspicious.test", "198.18.0.20", 443, 8_000_000)],
+        "read_firmware_version": [],
+        "update": [("updates.vendor.test", "198.18.0.11", 443, 1024)],
+        "local_discovery": [("", "10.77.0.3", 5353, 160)],
+        "ipv6": [("v6.suspicious.test", "fd00::20", 443, 512)],
+    }
+
     def __init__(self, mode: NetworkMode) -> None:
         self.mode = mode
 
     def flows_for(self, scenario: str, occurrence: int, start: datetime) -> List[Flow]:
-        values = GROUND_TRUTH.get(scenario, [])
+        values = self.NETWORK_BEHAVIOR.get(scenario, [])
         flows: List[Flow] = []
         for index, item in enumerate(values):
-            remote_ip = str(item["ip"])
+            hostname, remote_ip, remote_port, bytes_out = item
             ip_version = 6 if ":" in remote_ip else 4
             local = classify_scope(remote_ip)
-            blocked = self.mode in (NetworkMode.AIRGAP, NetworkMode.ENFORCE) and (scenario in ("camera", "diagnostics", "ipv6") or remote_ip == "198.18.0.9")
+            blocked = self.mode in (NetworkMode.AIRGAP, NetworkMode.ENFORCE) and (scenario in ("camera_stream", "ipv6") or remote_ip == "198.18.0.9")
             allowed = not blocked
             timestamp = start + timedelta(milliseconds=200 + index * 40)
-            hostname = str(item["host"])
+            hostname = str(hostname)
             flow = Flow(flow_id="f-%s-%02d-%02d" % (scenario, occurrence, index), ip_version=ip_version,
-                        transport_protocol="UDP" if int(item["port"]) == 123 or int(item["port"]) == 5353 else "TCP",
+                        transport_protocol="UDP" if int(remote_port) in (123, 5353) else "TCP",
                         dut_ip="10.77.0.2", remote_ip=remote_ip, dut_port=40000 + index,
-                        remote_port=int(item["port"]), first_seen=timestamp, last_seen=timestamp + timedelta(milliseconds=25),
-                        duration_ms=25.0, packets_out=4, packets_in=3, bytes_out=0 if blocked else int(item["bytes_out"]),
+                        remote_port=int(remote_port), first_seen=timestamp, last_seen=timestamp + timedelta(milliseconds=25),
+                        duration_ms=25.0, packets_out=4, packets_in=3, bytes_out=0 if blocked else int(bytes_out),
                         bytes_in=0 if blocked else 128, allowed=allowed, blocked=blocked,
-                        dns_names=[] if not hostname else [hostname], tls_server_names=[] if int(item["port"]) != 443 else ([hostname] if hostname else []),
+                        dns_names=[] if not hostname else [hostname], tls_server_names=[] if int(remote_port) != 443 else ([hostname] if hostname else []),
                         scenario_ids=[scenario], scope="local" if local == "local" and remote_ip != "fd00::20" else "external",
                         direct_ip=not bool(hostname))
             flows.append(flow)
@@ -71,10 +90,10 @@ def run_experiment(scenario: str, mode: NetworkMode, output_root: Path, device: 
             point = started + timedelta(seconds=len(events) * 0.001)
             events.append(Event(type="SCENARIO_BEGIN", scenario_id=name, timestamp=point, monotonic_ms=len(events), details={"repeat": occurrence + 1}))
             events.append(Event(type="BASELINE_BEGIN", scenario_id=name, timestamp=point, monotonic_ms=len(events)))
-            result = device.execute(type("Action", (), {"name": name})())
+            result = device.execute(type("Action", (), {"name": name, "parameters": {}})())
             events.append(Event(type="API_CALL_SUCCESS" if result.ok else "API_CALL_FAILURE", scenario_id=name, timestamp=point, monotonic_ms=len(events), details={"status": result.status_code}))
             events.append(Event(type="OBSERVATION_BEGIN", scenario_id=name, timestamp=point, monotonic_ms=len(events)))
-            observed = VirtualEvidence(mode).flows_for(name, occurrence, point)
+            observed = VirtualGateway(mode).flows_for(name, occurrence, point)
             flows.extend(observed)
             for flow in observed:
                 for hostname in flow.dns_names:

@@ -1,6 +1,6 @@
 # Development report
 
-Implemented the initial `boundary-audit` architecture: typed evidence schemas, generic device adapter, deterministic simulator and ground-truth fixture, scenario YAML, virtual observe/airgap/enforce runs, event/DNS/TLS/firewall/flow artifacts, differential analysis, policy generation, standalone text/HTML reports, CLI, demo verification, safety-focused Pi guidance, threat model, and tests.
+Implemented the initial `boundary-audit` architecture: typed evidence schemas, generic device adapter, capability-driven black-box robotic OS simulator, scenario matrix, virtual observe/airgap/enforce runs, event/DNS/TLS/firewall/flow artifacts, differential analysis, policy generation, standalone text/HTML reports, CLI, demo verification, safety-focused Linux guidance, threat model, and tests.
 
 Demo command: `./scripts/demo.sh` from `boundary-audit/`.
 

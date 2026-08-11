@@ -1,8 +1,0 @@
-version: 1
-note: Verification-only fixture. The auditor does not load this file during analysis.
-findings:
-  camera: [suspicious.test, large_outbound_transfer]
-  diagnostics: [direct_ip]
-  ipv6: [ipv6_egress]
-  local_discovery: [local_multicast]
-  update: [updates.vendor.test]

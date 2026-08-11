@@ -12,7 +12,7 @@ from .models import NetworkMode
 from .reports import write_reports
 from .runner import run_experiment
 from .scenarios import load_all
-from .simulator import SimulatedDevice
+from .dut_simulator import DutSimulator
 from .web_app import serve
 
 app = typer.Typer(add_completion=False, help="Differential network-behavior auditing for black-box devices.")
@@ -54,9 +54,9 @@ def scenarios_show(name: str) -> None:
 @app.command()
 def run(scenario: str, mode: NetworkMode = NetworkMode.OBSERVE, repeats: int = 3) -> None:
     """Run a scenario against the deterministic virtual backend."""
-    names = ["baseline", "boot", "state_read", "motion", "camera", "diagnostics", "update", "local_discovery", "ipv6"] if scenario == "full_matrix" else [scenario]
+    names = sorted(load_all(ROOT / "scenarios")) if scenario == "full_matrix" else [scenario]
     for name in names:
-        output = run_experiment(name, mode, RUNS, SimulatedDevice(), repeats=repeats)
+        output = run_experiment(name, mode, RUNS, DutSimulator.from_config(network_enabled=False), repeats=repeats)
         write_reports(output)
         typer.echo("wrote %s" % output)
 

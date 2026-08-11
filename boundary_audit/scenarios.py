@@ -22,10 +22,24 @@ def load_scenario(path: Path) -> ActionSpec:
     )
 
 
+def load_matrix(path: Path) -> Dict[str, ActionSpec]:
+    with path.open(encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle) or {}
+    return {
+        item["name"]: ActionSpec(name=item["name"], category=ActionCategory(item["category"]))
+        for item in raw.get("actions", [])
+    }
+
+
 def scenario_paths(root: Path) -> List[Path]:
     return sorted(root.glob("*.yaml"))
 
 
 def load_all(root: Path) -> Dict[str, ActionSpec]:
-    return {p.stem: load_scenario(p) for p in scenario_paths(root)}
-
+    result: Dict[str, ActionSpec] = {}
+    for path in scenario_paths(root):
+        if path.name == "robot_matrix.yaml":
+            result.update(load_matrix(path))
+        else:
+            result[path.stem] = load_scenario(path)
+    return result
