@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Differential network-behavior auditing for black-box IoT and robotic devices."
 readme = "README.md"
 requires-python = ">=3.9"
-license = {file = "LICENSE"}
+license = "MIT"
 dependencies = ["pydantic>=1.10,<3", "PyYAML>=6.0", "typer>=0.9", "grpcio>=1.60,<2", "protobuf>=4.25,<7"]
 
 [project.optional-dependencies]
@@ -12,6 +12,16 @@ dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.5", "mypy>=1.8"]
 
 [project.scripts]
 boundary-audit = "boundary_audit.cli:app"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+license-files = ["LICENSE"]
+
+[tool.setuptools.packages.find]
+include = ["boundary_audit*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

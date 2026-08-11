@@ -15,6 +15,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Set
 
 from .device import ActionResult, DeviceAdapter, HealthResult
 from .models import ActionCategory, ActionSpec
+from .pydantic_compat import model_dump
 from .config import load_config
 
 
@@ -233,7 +234,7 @@ def main() -> None:
     parser.add_argument("--no-network", action="store_true")
     args = parser.parse_args()
     dut = DutSimulator(network_enabled=not args.no_network)
-    print(json.dumps({"health": dut.health().dict(), "capabilities": dut.get_capabilities()}), flush=True)
+    print(json.dumps({"health": model_dump(dut.health()), "capabilities": dut.get_capabilities()}), flush=True)
     try:
         import sys
         for line in sys.stdin:
@@ -241,7 +242,7 @@ def main() -> None:
             action = ActionSpec(name=str(request["action"]),
                                 category=ActionCategory(request.get("category", "background")),
                                 parameters=request.get("parameters", {}))
-            print(dut.execute(action).json(), flush=True)
+            print(json.dumps(model_dump(dut.execute(action))), flush=True)
     finally:
         dut.cleanup()
 

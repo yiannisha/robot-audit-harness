@@ -14,14 +14,25 @@ from typing import List
 from .analysis import classify_scope, differential, generate_policy
 from .device import DeviceAdapter
 from .models import DnsObservation, Event, Flow, NetworkMode, RunMetadata, TlsObservation
+from .pydantic_compat import model_dump
 
 
 def _write_jsonl(path: Path, values: List[object]) -> None:
     with path.open("w", encoding="utf-8") as handle:
         for value in values:
-            if hasattr(value, "dict"):
-                value = value.dict()
+            value = model_dump(value)
             handle.write(json.dumps(value, sort_keys=True, default=str) + "\n")
+
+
+def _empty_scenario_analysis() -> dict:
+    return {
+        "destinations": [],
+        "new_destinations": [],
+        "physical_destinations": [],
+        "bytes_out": 0,
+        "blocked": 0,
+        "flows": 0,
+    }
 
 
 class VirtualGateway:
@@ -102,12 +113,14 @@ def run_experiment(scenario: str, mode: NetworkMode, output_root: Path, device: 
                     tls.append(TlsObservation(flow_id=flow.flow_id, timestamp=flow.first_seen, tls_version="TLS 1.3", sni=flow.tls_server_names[0], alpn="h2", certificate_subject="CN=%s" % flow.tls_server_names[0], certificate_sans=[flow.tls_server_names[0]], certificate_issuer="boundary-audit lab CA"))
             events += [Event(type="OBSERVATION_END", scenario_id=name, timestamp=point, monotonic_ms=len(events)), Event(type="COOLDOWN_BEGIN", scenario_id=name, timestamp=point, monotonic_ms=len(events)), Event(type="SCENARIO_END", scenario_id=name, timestamp=point, monotonic_ms=len(events))]
     analysis = differential(flows)
+    for name in selected:
+        analysis["scenarios"].setdefault(name, _empty_scenario_analysis())
     metadata.end = datetime.now(timezone.utc)
-    (directory / "metadata.json").write_text(json.dumps(metadata.dict(), indent=2, default=str), encoding="utf-8")
+    (directory / "metadata.json").write_text(json.dumps(model_dump(metadata), indent=2, default=str), encoding="utf-8")
     _write_jsonl(directory / "events.jsonl", events)
     _write_jsonl(directory / "dns.jsonl", dns)
     _write_jsonl(directory / "tls.jsonl", tls)
-    (directory / "flows.json").write_text(json.dumps([f.dict() for f in flows], indent=2, default=str), encoding="utf-8")
+    (directory / "flows.json").write_text(json.dumps([model_dump(flow) for flow in flows], indent=2, default=str), encoding="utf-8")
     (directory / "analysis.json").write_text(json.dumps(analysis, indent=2), encoding="utf-8")
     (directory / "layers.json").write_text(json.dumps({
         "raw_packets": {"status": "collected", "pcap": "packets.pcap", "packets": "virtual-evidence"},

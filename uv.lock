@@ -108,7 +108,7 @@ wheels = [
 [[package]]
 name = "boundary-audit"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "grpcio", version = "1.80.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "grpcio", version = "1.83.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },

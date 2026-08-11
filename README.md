@@ -14,25 +14,28 @@
 
 The controller never asks the DUT what it sent. Observation happens at the gateway, outside the DUT trust boundary. Encrypted payloads are not decrypted or interpreted.
 
+Use the project environment for all commands in this README. The simplest path
+is `uv run ...`; alternatively activate `.venv` after `uv sync`. The system
+`python3` may not have dependencies such as `grpcio` installed.
+
 ## 60-second demo
 
 The virtual backend is deterministic and needs no public Internet:
 
 ```bash
-cd boundary-audit
-python3 -m pip install -e '.[dev]'
-sudo ./scripts/demo.sh       # sudo is only needed for the Linux namespace backend; virtual mode works unprivileged
-open runs/*/report.html       # or open the HTML file in any browser
+uv sync --extra dev
+./scripts/demo.sh            # sudo is only needed for the Linux namespace backend; virtual mode works unprivileged
+open runs/*/report.html      # or open the HTML file in any browser
 ```
 
 Useful commands:
 
 ```bash
-python3 -m boundary_audit.cli doctor
-python3 -m boundary_audit.cli scenarios list
-python3 -m boundary_audit.cli run camera --mode observe
-python3 -m boundary_audit.cli run full_matrix --mode airgap
-python3 -m boundary_audit.cli run full_matrix --mode enforce
+uv run python -m boundary_audit.cli doctor
+uv run python -m boundary_audit.cli scenarios list
+uv run python -m boundary_audit.cli run camera --mode observe
+uv run python -m boundary_audit.cli run full_matrix --mode airgap
+uv run python -m boundary_audit.cli run full_matrix --mode enforce
 ```
 
 Modes are `observe` (allow the lab's mock Internet), `airgap` (record attempted egress as blocked), and `enforce` (default deny with approved flows represented by generated policy). A run directory is immutable evidence: raw packet capture placeholder/PCAP, JSONL logs, normalized flows, analysis, policy, and standalone reports are retained together.
@@ -46,7 +49,7 @@ See [docs/architecture.md](docs/architecture.md), [docs/methodology.md](docs/met
 Run the black-box DUT process on the machine being observed:
 
 ```bash
-python3 -m boundary_audit.dut_simulator
+uv run python -m boundary_audit.dut_simulator
 ```
 
 It accepts JSON-line SDK actions on stdin and performs local control traffic
@@ -56,7 +59,7 @@ Linux backend or an independently controlled gateway.
 For remote SDK control from another device on the same network:
 
 ```bash
-python3 -m boundary_audit.grpc_sdk --bind 0.0.0.0 --port 50051
+uv run python -m boundary_audit.grpc_sdk --bind 0.0.0.0 --port 50051
 ```
 
 ```python

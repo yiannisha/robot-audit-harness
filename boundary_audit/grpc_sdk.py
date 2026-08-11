@@ -15,6 +15,7 @@ from google.protobuf.struct_pb2 import Struct
 from .dut_simulator import DutSimulator
 from .config import load_config
 from .models import ActionCategory, ActionSpec
+from .pydantic_compat import model_dump
 
 SERVICE = "boundary_audit.Dut"
 
@@ -42,7 +43,7 @@ class DutGrpcService:
         self.dut = dut
 
     def health(self, request: Dict[str, Any]) -> Dict[str, Any]:
-        return self.dut.health().dict()
+        return model_dump(self.dut.health())
 
     def capabilities(self, request: Dict[str, Any]) -> Dict[str, Any]:
         return self.dut.get_capabilities()
@@ -51,7 +52,7 @@ class DutGrpcService:
         category = ActionCategory(str(request.get("category", "background")))
         action = ActionSpec(name=str(request["action"]), category=category,
                             parameters=dict(request.get("parameters", {})))
-        return self.dut.execute(action).dict()
+        return model_dump(self.dut.execute(action))
 
 
 def _handler(service: DutGrpcService, method: str) -> grpc.RpcMethodHandler:

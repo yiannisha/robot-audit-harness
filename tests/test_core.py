@@ -23,6 +23,13 @@ def test_reports_are_standalone(tmp_path):
     assert "encrypted" in report.lower()
 
 
+def test_zero_flow_scenarios_remain_in_analysis(tmp_path):
+    run = run_experiment("read_firmware_version", NetworkMode.OBSERVE, tmp_path, DutSimulator(network_enabled=False), repeats=3)
+    analysis = json.loads((run / "analysis.json").read_text())
+    assert "read_firmware_version" in analysis["scenarios"]
+    assert analysis["scenarios"]["read_firmware_version"]["flows"] == 0
+
+
 def test_enforce_records_blocked(tmp_path):
     run = run_experiment("camera_stream", NetworkMode.ENFORCE, tmp_path, DutSimulator(network_enabled=False), repeats=3)
     flows = json.loads((run / "flows.json").read_text())
