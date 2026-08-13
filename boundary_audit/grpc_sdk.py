@@ -6,6 +6,7 @@ not expose simulator internals, packet observations, or ground truth.
 
 import argparse
 import base64
+import socket
 import time
 import uuid
 from concurrent import futures
@@ -77,6 +78,10 @@ class DutGrpcService:
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
         metadata = dict(request.get("metadata", {}))
+        try:
+            metadata.setdefault("dut_ip", socket.gethostbyname(socket.gethostname()))
+        except OSError:
+            pass
         metadata.setdefault("network_endpoints", [
             {"host": endpoint.host, "port": endpoint.port, "tls": endpoint.tls}
             for endpoint in self.dut.endpoints.values()

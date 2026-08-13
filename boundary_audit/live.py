@@ -26,7 +26,8 @@ def _scenario_for(epoch: float, events: List[Dict[str, Any]]) -> str:
     intervals: List[Tuple[str, float, float]] = []
     begins: Dict[str, float] = {}
     for event in events:
-        name = str(event.get("scenario_id", "unattributed")).replace("/", "_")
+        details = event.get("details", {})
+        name = str(details.get("action", event.get("scenario_id", "unattributed"))).replace("/", "_")
         if event.get("type") == "API_CALL_BEGIN":
             begins[name] = float(event["epoch"])
         elif event.get("type") == "API_CALL_END" and name in begins:
