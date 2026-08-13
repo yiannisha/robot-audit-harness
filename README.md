@@ -104,6 +104,36 @@ The default `boot` action contacts configured `pool.ntp.org` and `example.com`
 endpoints and can produce DNS, UDP, and TLS observations when Internet access
 is available.
 
+## Security console
+
+The controller-side security console focuses on outside communication and
+possible interference rather than generic robot telemetry. It shows external
+and unattributed flows, DNS/TLS observations, action/event timing, layer
+coverage, recent runs, and guarded robot controls.
+
+To browse downloaded Pi evidence without controlling a robot:
+
+```bash
+uv run python scripts/security_console.py \
+  --runs-root pi-evidence \
+  --port 8080
+```
+
+Open `http://127.0.0.1:8080`.
+
+To control the Pi directly from the console:
+
+```bash
+uv run python scripts/security_console.py \
+  --runs-root pi-evidence \
+  --robot 192.168.1.168:50051 \
+  --port 8080
+```
+
+The console requires monitoring to be started before it will send actions.
+Unattributed flows, unsolicited inbound traffic, new destinations, blocked
+traffic, and degraded capture layers are intentionally prominent.
+
 ## What the results mean
 
 Each run contains raw evidence, normalized flows, event/API correlation,
