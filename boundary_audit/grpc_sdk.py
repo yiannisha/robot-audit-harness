@@ -26,6 +26,23 @@ from .monitoring import MonitoringAgent
 SERVICE = "boundary_audit.Dut"
 
 
+def _device_ip() -> str:
+    """Find the device address used for the active network route."""
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.connect(("192.0.2.1", 9))
+        address = probe.getsockname()[0]
+        probe.close()
+        if address and not address.startswith("127."):
+            return address
+    except OSError:
+        pass
+    try:
+        return socket.gethostbyname(socket.gethostname())
+    except OSError:
+        return ""
+
+
 def _request(value: Dict[str, Any]) -> bytes:
     message = Struct()
     message.update(value)
@@ -89,10 +106,7 @@ class DutGrpcService:
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
         metadata = dict(request.get("metadata", {}))
-        try:
-            metadata.setdefault("dut_ip", socket.gethostbyname(socket.gethostname()))
-        except OSError:
-            pass
+        metadata.setdefault("dut_ip", _device_ip())
         metadata.setdefault("network_endpoints", [
             {"host": endpoint.host, "port": endpoint.port, "tls": endpoint.tls}
             for endpoint in self.dut.endpoints.values()
