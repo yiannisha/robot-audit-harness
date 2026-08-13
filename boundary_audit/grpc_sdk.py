@@ -188,7 +188,7 @@ def main() -> None:
     parser.add_argument("--no-network", action="store_true")
     parser.add_argument("--monitor-interface", default="any")
     parser.add_argument("--monitor-root", default="runs")
-    parser.add_argument("--monitor-packet-limit", type=int, default=100000)
+    parser.add_argument("--monitor-packet-limit", type=int, default=200)
     args = parser.parse_args()
     dut_config = load_config().get("dut", {})
     bind = args.bind or str(dut_config.get("grpc_bind", "0.0.0.0"))

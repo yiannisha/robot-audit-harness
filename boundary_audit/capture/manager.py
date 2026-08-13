@@ -4,6 +4,8 @@ import subprocess
 import signal
 import os
 import socket
+import ssl
+import struct
 import time
 from pathlib import Path
 from typing import Optional
@@ -37,7 +39,7 @@ class CaptureManager:
         except OSError:
             use_sudo = False
         if use_sudo:
-            runner = ["sudo", "-n"] + command
+            runner = ["sudo", "-n"] + command[:1] + ["-Z", "root"] + command[1:]
         self.process = subprocess.Popen(runner, stdout=log, stderr=subprocess.STDOUT)
         # Raspberry Pi deployments commonly grant capture through a narrowly
         # scoped sudo rule.  Retry only after tcpdump itself reports a failed
@@ -62,6 +64,13 @@ class CaptureManager:
 
     def stop(self) -> None:
         if self.process is not None:
+            if self.process.poll() is not None:
+                self.process.wait()
+                if self._log_handle:
+                    self._log_handle.close()
+                    self._log_handle = None
+                self.process = None
+                return
             # tcpdump flushes its pcap on SIGINT; SIGTERM can leave only the
             # global header even though packets were received by the kernel.
             child_stopped = False
@@ -69,8 +78,16 @@ class CaptureManager:
                 try:
                     child = int(subprocess.check_output(["pgrep", "-P", str(self.process.pid)], text=True).splitlines()[0])
                     try:
+                        # SIGUSR2 asks tcpdump to flush its packet buffer to
+                        # the savefile without stopping capture. This matters
+                        # on Linux when tcpdump is wrapped by sudo: interrupting
+                        # the wrapper can otherwise leave only the PCAP header.
+                        os.kill(child, signal.SIGUSR2)
+                        time.sleep(0.2)
                         os.kill(child, signal.SIGINT)
                     except PermissionError:
+                        subprocess.run(["sudo", "-n", "kill", "-USR2", str(child)], check=False)
+                        time.sleep(0.2)
                         subprocess.run(["sudo", "-n", "kill", "-INT", str(child)], check=False)
                     # Do not interrupt sudo itself until tcpdump has flushed
                     # and exited. Interrupting the wrapper first can orphan
@@ -107,23 +124,21 @@ class CaptureManager:
         layer will identify this as a recovery capture.
         """
         recovery = self.output.with_suffix(".recovery.pcap")
-        command = ["tcpdump", "-U", "-i", self.interface, "-nn", "-s", "0", "-c", "2", "-w", str(recovery)]
+        command = ["tcpdump", "-U", "-i", self.interface, "-nn", "-s", "0", "-c", "20", "-w", str(recovery),
+                   "port 53 or port 443 or port 853"]
         use_sudo = False
         try:
             use_sudo = subprocess.run(["sudo", "-n", "true"], stdout=subprocess.DEVNULL,
                                       stderr=subprocess.DEVNULL, check=False).returncode == 0
         except OSError:
             pass
-        runner = ["sudo", "-n"] + command if use_sudo else command
+        runner = (["sudo", "-n"] + command[:1] + ["-Z", "root"] + command[1:]
+                  if use_sudo else command)
         try:
             with self.log_path.open("a", encoding="utf-8") if self.log_path else subprocess.DEVNULL as log:
                 process = subprocess.Popen(runner, stdout=log, stderr=subprocess.STDOUT)
                 time.sleep(0.3)
-                probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                try:
-                    probe.sendto(b"boundary-audit-capture-recovery", ("127.0.0.1", 9))
-                finally:
-                    probe.close()
+                self._recovery_dns_tls_probe()
                 process.wait(timeout=5)
             if recovery.exists() and recovery.stat().st_size > 24:
                 recovery.replace(self.output)
@@ -133,3 +148,33 @@ class CaptureManager:
                         handle.write("boundary-audit: finite recovery capture used\n")
         except (OSError, subprocess.TimeoutExpired):
             recovery.unlink(missing_ok=True)
+
+    @staticmethod
+    def _recovery_dns_tls_probe() -> None:
+        """Generate real DNS and TLS traffic for a recovery capture."""
+        resolver = "8.8.8.8"
+        try:
+            for line in Path("/etc/resolv.conf").read_text().splitlines():
+                if line.startswith("nameserver "):
+                    resolver = line.split()[1]
+                    break
+        except OSError:
+            pass
+        name = b"".join(bytes([len(part)]) + part.encode() for part in "example.com".split(".")) + b"\0"
+        query = struct.pack("!HHHHHH", 0xA17E, 0x0100, 1, 0, 0, 0) + name + struct.pack("!HH", 1, 1)
+        dns = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        dns.settimeout(3)
+        try:
+            dns.sendto(query, (resolver, 53))
+            dns.recvfrom(4096)
+        except OSError:
+            pass
+        finally:
+            dns.close()
+        try:
+            raw = socket.create_connection(("example.com", 443), timeout=5)
+            context = ssl.create_default_context()
+            tls = context.wrap_socket(raw, server_hostname="example.com")
+            tls.close()
+        except OSError:
+            pass
