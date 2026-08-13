@@ -78,6 +78,7 @@ class MonitoringSession:
 
     def snapshot(self) -> Dict[str, Any]:
         """Refresh replayable metadata while packet capture continues."""
+        self.capture.snapshot()
         probe_endpoints(self.metadata.get("network_endpoints", []),
                         self.directory / "dns.jsonl", self.directory / "tls.jsonl")
         replay_run(self.directory)

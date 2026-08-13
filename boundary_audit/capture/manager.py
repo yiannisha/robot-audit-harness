@@ -131,6 +131,29 @@ class CaptureManager:
             if self.output.exists() and self.output.stat().st_size <= 24:
                 self._recover_minimal_capture()
 
+    def snapshot(self) -> None:
+        """Publish the packets captured so far without stopping capture.
+
+        dumpcap writes to a privileged temporary file until the run is closed.
+        Copying that file into the run directory makes packet-derived flows
+        available to the live replay path while leaving the capture process
+        running.  The replacement is atomic so readers never see a half-copy.
+        """
+        if self._capture_path is None or not self._capture_path.exists():
+            return
+        if self._capture_path != self.output:
+            try:
+                subprocess.run(["sudo", "-n", "chmod", "a+r", str(self._capture_path)], check=True,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except (OSError, subprocess.CalledProcessError):
+                pass
+            temporary = self.output.with_suffix(".snapshot.pcap")
+            try:
+                shutil.copyfile(str(self._capture_path), str(temporary))
+                os.replace(temporary, self.output)
+            except (OSError, shutil.Error):
+                temporary.unlink(missing_ok=True)
+
     def _finalize_capture(self) -> None:
         if self._capture_path and self._capture_path.exists() and self._capture_path != self.output:
             # dumpcap's dropped-privilege writer may create a root/wireshark
