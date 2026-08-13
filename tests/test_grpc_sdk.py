@@ -23,6 +23,9 @@ def test_remote_grpc_monitor_lifecycle_and_artifact_access(tmp_path):
         assert started["status"] == "running"
         client.mark_event("API_CALL_BEGIN", "grpc-run", {"action": "stand"})
         client.execute("stand", category="motion")
+        snapshot = client.snapshot_monitor()
+        assert snapshot["status"] == "running"
+        assert b'"action": "stand"' in client.get_artifact("api-results.jsonl")
         stopped = client.stop_monitor()
         assert stopped["status"] == "complete"
         assert b"grpc-run" in client.get_artifact("events.jsonl")

@@ -94,6 +94,9 @@ class DutGrpcService:
     def monitor_status(self, request: Dict[str, Any]) -> Dict[str, Any]:
         return self.monitor.status()
 
+    def snapshot_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        return self.monitor.snapshot()
+
     def get_artifact(self, request: Dict[str, Any]) -> Dict[str, Any]:
         name = str(request["name"])
         data = self.monitor.artifact(name)
@@ -120,6 +123,7 @@ def add_dut_service(server: grpc.Server, dut: DutSimulator, monitor_root: Path =
         "MarkEvent": _handler(service, "mark_event"),
         "StopMonitor": _handler(service, "stop_monitor"),
         "MonitorStatus": _handler(service, "monitor_status"),
+        "SnapshotMonitor": _handler(service, "snapshot_monitor"),
         "GetArtifact": _handler(service, "get_artifact"),
     }),))
 
@@ -144,6 +148,8 @@ class DutGrpcClient:
             "/%s/StopMonitor" % SERVICE, request_serializer=_request, response_deserializer=_decode)
         self._monitor_status = self._channel.unary_unary(
             "/%s/MonitorStatus" % SERVICE, request_serializer=_request, response_deserializer=_decode)
+        self._snapshot_monitor = self._channel.unary_unary(
+            "/%s/SnapshotMonitor" % SERVICE, request_serializer=_request, response_deserializer=_decode)
         self._get_artifact = self._channel.unary_unary(
             "/%s/GetArtifact" % SERVICE, request_serializer=_request, response_deserializer=_decode)
 
@@ -171,6 +177,9 @@ class DutGrpcClient:
 
     def monitor_status(self) -> Dict[str, Any]:
         return self._monitor_status({})
+
+    def snapshot_monitor(self) -> Dict[str, Any]:
+        return self._snapshot_monitor({})
 
     def get_artifact(self, name: str) -> bytes:
         return base64.b64decode(self._get_artifact({"name": name})["data_base64"])

@@ -76,6 +76,13 @@ class MonitoringSession:
         self._write_manifest()
         return self.status()
 
+    def snapshot(self) -> Dict[str, Any]:
+        """Refresh replayable metadata while packet capture continues."""
+        probe_endpoints(self.metadata.get("network_endpoints", []),
+                        self.directory / "dns.jsonl", self.directory / "tls.jsonl")
+        replay_run(self.directory)
+        return self.status()
+
     def status(self) -> Dict[str, Any]:
         pcap = self.directory / "packets.pcap"
         return {"run_id": self.run_id, "status": "running" if self.started else self.metadata.get("status", "created"),
@@ -130,6 +137,11 @@ class MonitoringAgent:
         if not self.session:
             raise RuntimeError("no monitoring session")
         return self.session.stop(cancelled)
+
+    def snapshot(self) -> Dict[str, Any]:
+        if not self.session:
+            raise RuntimeError("no monitoring session")
+        return self.session.snapshot()
 
     def mark_event(self, event_type: str, scenario_id: str = "unattributed",
                    details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
