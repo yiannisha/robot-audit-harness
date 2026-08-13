@@ -1,14 +1,25 @@
-# Reproducible demo
+# Device-host demo
 
-Install the project with `uv` and run the deterministic virtual demo:
+Install the project on both the device host and controller host:
 
 ```bash
-uv sync --extra dev
-./scripts/demo.sh
-./scripts/verify_demo.sh
+uv sync
 ```
 
-No public DNS, SaaS, cloud credentials, or external services are used by the virtual path. For the host-backed path, install `iproute2`, `tcpdump`, `tshark`, `nftables`, `dnsmasq`, and (for Wi-Fi AP mode) `hostapd`. On Debian-based device hosts, run `scripts/pi/install.sh`; it verifies both `tcpdump` and `tshark`. The remote device demo is run from the controller host with `scripts/remote_robot_demo.py <DEVICE-IP> --output device-evidence`.
+On the device host, install the Linux collection tools and start the gRPC
+service as described in [device-host.md](device-host.md). Then, from the
+controller host, run the live demo:
+
+```bash
+uv run python scripts/remote_robot_demo.py \
+  <DEVICE-IP> \
+  --output device-evidence \
+  --boot
+```
+
+The demo performs real simulator actions over gRPC and downloads the evidence
+bundle produced by the device-resident monitor. It requires the device host's
+network capture permissions and does not use an SSH tunnel.
 
 For the live security console, run `scripts/security_console.py` on the controller host
 with `--device <DEVICE-IP>:50051`. It starts monitoring automatically after the device host

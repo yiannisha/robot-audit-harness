@@ -1,20 +1,10 @@
-"""Stable evidence and experiment schemas.
-
-The report is derived from these records; raw evidence is intentionally kept
-alongside the normalized records in each immutable run directory.
-"""
+"""Stable action and evidence schemas."""
 
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-
-
-class NetworkMode(str, Enum):
-    AIRGAP = "airgap"
-    OBSERVE = "observe"
-    ENFORCE = "enforce"
 
 
 class ActionCategory(str, Enum):
@@ -90,18 +80,3 @@ class TlsObservation(BaseModel):
     certificate_sans: List[str] = Field(default_factory=list)
     certificate_issuer: Optional[str] = None
     encrypted_payload: bool = True
-
-
-class RunMetadata(BaseModel):
-    tool_version: str
-    backend: str
-    mode: NetworkMode
-    scenario: str
-    command: str
-    start: datetime
-    end: Optional[datetime] = None
-    random_seed: int = 1337
-    simulator_version: str = "1.0"
-    dut_ip: str = "10.77.0.2"
-    gateway_ip: str = "10.77.0.1"
-

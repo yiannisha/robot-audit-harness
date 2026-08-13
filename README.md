@@ -22,7 +22,6 @@ The working deployment is:
 The device host owns collection. The controller host sends actions over gRPC
 and downloads a fresh snapshot after every action; the controller does not
 need an SSH tunnel.
-The virtual backend remains available for deterministic, offline CI and demos.
 
 ## Install
 
@@ -39,24 +38,6 @@ For a Debian-based device host, install the collection tools:
 This installs and verifies `dumpcap`, `tcpdump`, and `tshark`, plus the
 optional firewall/DNS/AP tools. See [docs/device-host.md](docs/device-host.md)
 and the [Raspberry Pi profile](docs/raspberry-pi.md).
-
-## Virtual simulation demo
-
-This path needs no device host or public Internet:
-
-```bash
-./scripts/demo.sh
-```
-
-Useful commands:
-
-```bash
-uv run python -m boundary_audit.cli doctor
-uv run python -m boundary_audit.cli scenarios list
-uv run python -m boundary_audit.cli run camera --mode observe
-uv run python -m boundary_audit.cli run full_matrix --mode airgap
-uv run python -m boundary_audit.cli run full_matrix --mode enforce
-```
 
 ## Device host simulator and monitoring
 
@@ -156,8 +137,7 @@ and status semantics.
 
 The repository also contains:
 
-- deterministic virtual evidence generation;
-- scenario/action models and repeated baseline comparison;
+- device action models;
 - flow normalization, attribution, and policy generation;
 - gRPC control and artifact APIs;
 - nftables ownership abstractions;

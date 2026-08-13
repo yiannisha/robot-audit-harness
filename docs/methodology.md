@@ -12,16 +12,9 @@
 8. Repeat scenarios and compare destinations, volume, timing, and status.
 9. Generate analysis and a candidate nftables policy.
 
-The virtual runner uses repeated baseline/action observations and produces
-deterministic evidence for development. The device-host path records what the
-DUT host observed during the real run.
-
 Correlation is not causation. Live flow attribution links every packet that
 falls inside an action window to that action, including packets from an
-already-open or loopback connection. The virtual differential analysis also
-classifies a destination as strongly action-correlated when it is present in at
-least two of three action repetitions and absent in at least two of three
-baseline repetitions.
+already-open or loopback connection.
 
 Active DNS/TLS metadata proves that the device host could resolve/connect to a
 configured endpoint during collection. It is not a claim that every packet in

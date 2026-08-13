@@ -10,7 +10,7 @@ gRPC service over the network.
                   │
                   ▼
  Device host
-   ├─ DutSimulator or physical DUT adapter
+       ├─ DutSimulator or physical DUT adapter
    └─ MonitoringAgent
        ├─ dumpcap packet capture
        ├─ active DNS resolution metadata
@@ -47,10 +47,6 @@ available. Active DNS/TLS records are explicitly labelled with their source in
 `dns.jsonl` and `tls.jsonl`. Flow attribution checks every packet in an
 aggregated flow against action windows, so long-lived and loopback connections
 can still be linked to later actions.
-
-The virtual backend remains available for deterministic CI. It produces the
-same normalized evidence and analysis contracts without requiring a device host
-or Internet access.
 
 The gRPC service currently uses insecure transport. It is suitable for a
 trusted test LAN; add TLS/authentication before exposing it beyond that scope.
