@@ -60,12 +60,19 @@ class DutGrpcService:
         action = ActionSpec(name=str(request["action"]), category=category,
                             parameters=dict(request.get("parameters", {})))
         started = time.time()
+        monitoring = self.monitor.session and self.monitor.session.started
+        scenario = self.monitor.session.metadata.get("scenario", "remote") if monitoring else "remote"
+        if monitoring:
+            self.monitor.mark_event("API_CALL_BEGIN", scenario, {"action": action.name,
+                                                                    "category": action.category.value})
         result = model_dump(self.dut.execute(action))
         if self.monitor.session and self.monitor.session.started:
             self.monitor.session.record_api({"request_id": uuid.uuid4().hex, "action": action.name,
                                              "category": action.category.value, "parameters": action.parameters,
                                              "started_epoch": started, "ended_epoch": time.time(),
                                              "result": result})
+            self.monitor.mark_event("API_CALL_END", scenario, {"action": action.name,
+                                                                  "ok": result.get("ok", False)})
         return result
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:

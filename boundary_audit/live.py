@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from .analysis import differential, generate_policy
 
 _PACKET = re.compile(
-    r"^(?P<epoch>[0-9]+\.[0-9]+) (?P<family>IP6?) "
+    r"^(?P<epoch>[0-9]+\.[0-9]+) (?:(?:\S+) (?:In|Out) )?(?P<family>IP6?) "
     r"(?P<src>.+)\.(?P<sport>[0-9]+) > (?P<dst>.+)\.(?P<dport>[0-9]+): .* length (?P<length>[0-9]+)$"
 )
 
