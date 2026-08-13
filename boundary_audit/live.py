@@ -77,12 +77,16 @@ def extract_flows(run_dir: Path, dut_ip: Optional[str] = None) -> List[Dict[str,
         length = int(match["length"])
         record["packets_out" if outbound else "packets_in"] += 1
         record["bytes_out" if outbound else "bytes_in"] += length
-        if not record["scenario_ids"]:
-            scenario = _scenario_for(record["first_seen_epoch"], events)
+        scenario = _scenario_for(epoch, events)
+        if scenario != "unattributed" and scenario not in record["scenario_ids"]:
+            if "unattributed" in record["scenario_ids"]:
+                record["scenario_ids"].remove("unattributed")
             record["scenario_ids"].append(scenario)
             roles = {"camera_stream": "suspicious.test", "read_firmware_version": "firmware-service",
                      "boot": "time-and-robot-services", "stand": "local-control-telemetry"}
             record["endpoint_role"] = roles.get(scenario, "mock_sink")
+        elif not record["scenario_ids"] and scenario == "unattributed":
+            record["scenario_ids"].append(scenario)
     for record in flows.values():
         record["first_seen"] = datetime.fromtimestamp(record.pop("first_seen_epoch"), timezone.utc).isoformat()
         last = record.pop("last_seen_epoch")
