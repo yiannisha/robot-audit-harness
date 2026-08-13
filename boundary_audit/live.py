@@ -42,6 +42,8 @@ def _scenario_for(epoch: float, events: List[Dict[str, Any]]) -> str:
 
 
 def extract_flows(run_dir: Path, dut_ip: Optional[str] = None) -> List[Dict[str, Any]]:
+    if not (run_dir / "packets.pcap").exists() or (run_dir / "packets.pcap").stat().st_size <= 24:
+        return []
     metadata = json.loads((run_dir / "metadata.json").read_text())
     dut = dut_ip or metadata.get("dut_ip", "")
     target_ips = {value.strip() for value in str(metadata.get("target_ips", metadata.get("sink_host", ""))).split(",") if value.strip()}

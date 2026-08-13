@@ -70,6 +70,18 @@ print(robot.capabilities())
 robot.execute("stand", category="motion")
 ```
 
+Run the robot-action monitoring demo locally. It starts the gRPC robot,
+executes real simulator actions, stores event markers and captured evidence,
+then prints the run directory:
+
+```bash
+./scripts/run_robot_monitor_demo.sh --interface lo
+```
+
+Use `--interface any` or the robot's real interface when running on a Linux
+robot. The demo's output includes commands for inspecting `layers.json`,
+`flows.json`, and `packets.pcap`.
+
 For live monitoring and run deployment from a browser:
 
 ```bash
