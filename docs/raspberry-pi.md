@@ -1,30 +1,39 @@
-# Raspberry Pi robot monitor
+# Raspberry Pi deployment
 
-Target Raspberry Pi 5 / Raspberry Pi OS or Debian. The simulator/DUT and the
-monitoring agent run on the Pi; the controller can connect directly to the
-gRPC port from a laptop.
+The Pi hosts both the simulator/DUT and the monitoring agent. The laptop
+connects directly to the gRPC service over the LAN; no SSH tunnel is required.
 
-Install the capture and decoding tools:
+## Install
+
+On Raspberry Pi OS/Debian:
 
 ```bash
-cd ~/robot-audit-harness
+cd ~/side/dimensional/robot-audit-harness
+uv sync
 ./scripts/pi/install.sh
 tshark --version
+dumpcap --version
 ```
 
-`tcpdump` supplies raw packets. `tshark` is used during replay to populate
-`dns.jsonl` and `tls.jsonl`. If `tshark` is missing, those layers are reported
-as `unavailable`; the run is not allowed to pretend they were collected.
+The installer installs `dumpcap`, `tcpdump`, `tshark`, `nftables`, `iproute2`,
+and the optional DNS/AP tools. It does not change firewall or forwarding state.
 
-Copy `config.example.yaml`, set the interfaces, and review every change.
-`setup.sh` and `teardown.sh` are deliberately non-destructive guidance stubs:
-production deployment must create a uniquely named nftables table, preserve
-unrelated rules, and restore temporary forwarding/AP/DNS state on exit. Never
-use `flush ruleset` on a shared gateway.
-
-Start the robot simulator and monitor service for direct LAN gRPC control:
+The capture process needs permission to open the interface. Verify:
 
 ```bash
+sudo -n true
+sudo -n dumpcap -i any -a duration:1 -w /tmp/capture-test.pcapng
+```
+
+## Start properly
+
+Run from a writable repository directory. Do not use `/home/pi` unless that is
+the actual home directory of the account running the service.
+
+```bash
+cd ~/side/dimensional/robot-audit-harness
+mkdir -p runs
+
 uv run python -m boundary_audit.grpc_sdk \
   --bind 0.0.0.0 \
   --port 50051 \
@@ -32,15 +41,27 @@ uv run python -m boundary_audit.grpc_sdk \
   --monitor-root "$PWD/runs"
 ```
 
-Use `wlan0` or `eth0` instead of `any` when the capture should be restricted
-to one interface. Open TCP port `50051` in the Pi firewall if needed.
+Use `wlan0` or `eth0` instead of `any` to reduce unrelated traffic. Open TCP
+port `50051` on the Pi firewall if necessary. The current gRPC transport is
+unauthenticated/insecure, so restrict access to the trusted test LAN.
 
-From the laptop, run:
+## Control from the laptop
+
+From the laptop repository:
 
 ```bash
-uv run python scripts/remote_robot_demo.py <PI-IP> --output pi-evidence --boot
+uv run python scripts/remote_robot_demo.py \
+  <PI-IP> \
+  --output pi-evidence \
+  --boot
 ```
 
-The script executes actions over gRPC, stops the Pi-side monitor, and downloads
-the evidence bundle. Inspect `layers.json`, `flows.json`, `dns.jsonl`,
-`tls.jsonl`, and `packets.pcap` in the downloaded run directory.
+The script starts monitoring remotely, executes `boot`, `stand`,
+`move_forward`, `camera_stream`, and `camera_stop`, stops the session, and
+downloads the evidence bundle.
+
+The default `boot` action uses `pool.ntp.org` and `example.com` endpoints. It
+can therefore produce DNS, UDP, and TLS traffic when the Pi has Internet
+access. `network_errors` in the action result reports connection failures.
+
+See [results.md](results.md) for artifact and status interpretation.

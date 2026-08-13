@@ -1,31 +1,55 @@
 # boundary-audit
 
-`boundary-audit` places an untrusted IoT/robotic device behind an independently controlled network boundary, exercises its functional API, captures network behavior, and performs differential analysis across actions and network policies.
+`boundary-audit` exercises an IoT/robotic device, records its network and host
+behavior, and produces replayable evidence for later analysis.
+
+The working deployment is:
 
 ```text
- upstream / Internet
-          |
-   trusted gateway  <- capture, DNS, nftables, flow evidence
-          |
-   isolated DUT LAN
-          |
-   black-box DUT + high-level API
+ Laptop controller
+       │ direct LAN gRPC
+       ▼
+ Raspberry Pi
+   ├─ robot simulator or DUT
+   └─ monitoring agent
+       ├─ dumpcap PCAP capture
+       ├─ DNS/TLS metadata
+       ├─ process/socket snapshots
+       ├─ firewall snapshot
+       └─ durable evidence bundle
 ```
 
-The controller never asks the DUT what it sent. Observation happens at the gateway, outside the DUT trust boundary. Encrypted payloads are not decrypted or interpreted.
+The Pi owns collection. The laptop starts actions and downloads completed
+artifacts. The virtual backend remains available for deterministic, offline
+CI and demos.
 
-Use the project environment for all commands in this README. The simplest path
-is `uv run ...`; alternatively activate `.venv` after `uv sync`. The system
-`python3` may not have dependencies such as `grpcio` installed.
-
-## 60-second demo
-
-The virtual backend is deterministic and needs no public Internet:
+## Install
 
 ```bash
 uv sync --extra dev
-./scripts/demo.sh            # sudo is only needed for the Linux namespace backend; virtual mode works unprivileged
-open runs/*/report.html      # or open the HTML file in any browser
+```
+
+For Raspberry Pi/Debian collection tools:
+
+```bash
+./scripts/pi/install.sh
+```
+
+This installs and verifies `dumpcap`, `tcpdump`, and `tshark`, plus the
+optional firewall/DNS/AP tools. See [docs/raspberry-pi.md](docs/raspberry-pi.md).
+
+## Virtual simulation demo
+
+This path needs no Pi or public Internet:
+
+```bash
+./scripts/demo.sh
+```
+
+Open a generated report:
+
+```bash
+open runs/*/report.html
 ```
 
 Useful commands:
@@ -38,67 +62,75 @@ uv run python -m boundary_audit.cli run full_matrix --mode airgap
 uv run python -m boundary_audit.cli run full_matrix --mode enforce
 ```
 
-Modes are `observe` (allow the lab's mock Internet), `airgap` (record attempted egress as blocked), and `enforce` (default deny with approved flows represented by generated policy). A run directory is immutable evidence: raw packet capture placeholder/PCAP, JSONL logs, normalized flows, analysis, policy, and standalone reports are retained together.
+## Pi simulator and monitoring
 
-## Project status
-
-The virtual backend and analysis pipeline are the supported reproducible path in this initial release. The Linux backend boundary is intentionally explicit and conservative; Raspberry Pi scripts do not silently flush a user's firewall. Configure interfaces in `config.yaml` before adapting the scripts to a real gateway.
-
-See [docs/architecture.md](docs/architecture.md), [docs/methodology.md](docs/methodology.md), [docs/threat-model.md](docs/threat-model.md), [docs/demo.md](docs/demo.md), and [docs/raspberry-pi.md](docs/raspberry-pi.md).
-
-Run the black-box DUT process on the machine being observed:
+On the Pi, from a writable checkout directory:
 
 ```bash
-uv run python -m boundary_audit.dut_simulator
+uv sync
+./scripts/pi/install.sh
+
+uv run python -m boundary_audit.grpc_sdk \
+  --bind 0.0.0.0 \
+  --port 50051 \
+  --monitor-interface any \
+  --monitor-root "$PWD/runs"
 ```
 
-It accepts JSON-line SDK actions on stdin and performs local control traffic
-plus configured real service calls. Capture the host externally with the
-Linux backend or an independently controlled gateway.
+Do not use an assumed `/home/pi` path unless it exists and is writable by the
+service account. The current gRPC service is intentionally simple and uses
+insecure transport; keep port `50051` on the trusted LAN.
 
-For remote SDK control from another device on the same network:
+## Laptop controller demo
+
+From the laptop, connect directly to the Pi's address:
 
 ```bash
-uv run python -m boundary_audit.grpc_sdk --bind 0.0.0.0 --port 50051
+uv run python scripts/remote_robot_demo.py \
+  192.168.1.168 \
+  --output pi-evidence \
+  --boot
 ```
 
-```python
-from boundary_audit.grpc_sdk import DutGrpcClient
+The script starts a monitored run, executes real simulator actions over gRPC,
+stops collection, and downloads the bundle locally.
 
-robot = DutGrpcClient("robot-host:50051")
-print(robot.capabilities())
-robot.execute("stand", category="motion")
-```
-
-Run the robot-action monitoring demo locally. It starts the gRPC robot,
-executes real simulator actions, stores event markers and captured evidence,
-then prints the run directory:
+Inspect the result:
 
 ```bash
-./scripts/run_robot_monitor_demo.sh --interface lo
+RUN=$(find pi-evidence -mindepth 1 -maxdepth 1 -type d | sort | tail -1)
+cat "$RUN/layers.json"
+cat "$RUN/api-results.jsonl"
+cat "$RUN/dns.jsonl"
+cat "$RUN/tls.jsonl"
+tcpdump -nn -r "$RUN/packets.pcap"
 ```
 
-Use `--interface any` or the robot's real interface when running on a Linux
-robot. The demo's output includes commands for inspecting `layers.json`,
-`flows.json`, and `packets.pcap`.
+The default `boot` action contacts configured `pool.ntp.org` and `example.com`
+endpoints and can produce DNS, UDP, and TLS observations when Internet access
+is available.
 
-For live monitoring and run deployment from a browser:
+## What the results mean
 
-```bash
-uv run python -m boundary_audit.cli dashboard-serve
-open http://127.0.0.1:8765
-```
+Each run contains raw evidence, normalized flows, event/API correlation,
+layer statuses, differential analysis, a generated policy, and a checksum
+manifest. Read [docs/results.md](docs/results.md) for the artifact reference
+and status semantics.
 
-The web app polls run artifacts and job status every two seconds. It exposes
-the raw PCAP, normalized flows, event markers, analysis, and per-layer
-evidence through the UI and `/api/runs/<RUN_ID>`. Remote deployment requires
-non-interactive SSH authentication such as an SSH key or agent.
+## Other components
 
-## Example finding
+The repository also contains:
 
-The virtual backend exercises the capability matrix. It is a development
-observer; authoritative findings require capture outside the DUT process.
+- deterministic virtual evidence generation;
+- scenario/action models and repeated baseline comparison;
+- flow normalization, attribution, and policy generation;
+- gRPC control and artifact APIs;
+- HTML/text reports and a web dashboard;
+- nftables ownership abstractions;
+- Raspberry Pi installation and deployment guidance;
+- tests for virtual runs, gRPC, real loopback capture, and evidence bundles.
 
-## Future adapters
-
-The `DeviceAdapter` interface is vendor-neutral. A future physical robotics adapter can invoke a device's high-level API without changing gateway capture, evidence schemas, differential analysis, or reports.
+See [docs/architecture.md](docs/architecture.md),
+[docs/methodology.md](docs/methodology.md),
+[docs/results.md](docs/results.md), and
+[docs/threat-model.md](docs/threat-model.md).
