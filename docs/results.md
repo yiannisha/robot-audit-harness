@@ -20,6 +20,11 @@ The important files are:
 | `generated-policy.nft` | Candidate nftables policy from observed allowed flows |
 | `manifest.json` | Bundle schema, file sizes, and SHA-256 checksums |
 
+During an active run, the device host exposes a replayable snapshot after each action.
+Those snapshots contain the current `flows.json`, `layers.json`, DNS/TLS
+metadata, and API/event records. The final clear/stop operation adds the fully
+flushed capture, host stop snapshots, manifest, and checksums.
+
 ## Layer statuses
 
 - `collected`: evidence was written for that layer.
@@ -29,7 +34,7 @@ The important files are:
 - `partial`: only some expected observations were available.
 
 For example, `dns.status = not_observed` means no DNS record was found in the
-PCAP or active endpoint probe. It does not prove that the robot never used
+PCAP or active endpoint probe. It does not prove that the device never used
 DNS. Check `metadata.json`, `events.jsonl`, and the capture log before drawing
 that conclusion.
 
@@ -46,3 +51,8 @@ cat RUN/dns.jsonl
 cat RUN/tls.jsonl
 tcpdump -nn -r RUN/packets.pcap
 ```
+
+Flow `scenario_ids` are action links. A flow is linked when any packet in the
+aggregated flow falls inside an action window, including loopback and
+long-lived connections. `unattributed` means no packet matched an action
+window; it is an investigation signal, not proof that the traffic is benign.

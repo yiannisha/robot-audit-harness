@@ -86,7 +86,7 @@ class SecurityConsole:
 
     def action(self, request: Dict[str, Any]) -> Dict[str, Any]:
         if not self.robot:
-            raise RuntimeError("UI was started without --robot HOST:PORT")
+            raise RuntimeError("UI was started without --device HOST:PORT")
         with self.lock:
             self._ensure_monitoring_locked()
             result = self.robot.execute(str(request["action"]), str(request.get("category", "background")),
@@ -97,9 +97,9 @@ class SecurityConsole:
             return result
 
     def _ensure_monitoring_locked(self) -> None:
-        """Synchronize the UI flag with the Pi before allowing an action."""
+        """Synchronize the UI flag with the device host before an action."""
         if not self.robot:
-            raise RuntimeError("UI was started without --robot HOST:PORT")
+            raise RuntimeError("UI was started without --device HOST:PORT")
         status = self.robot.monitor_status()
         if status.get("status") == "running":
             self.monitoring = True
@@ -111,7 +111,7 @@ class SecurityConsole:
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
         if not self.robot:
-            raise RuntimeError("UI was started without --robot HOST:PORT")
+            raise RuntimeError("UI was started without --device HOST:PORT")
         with self.lock:
             if self.monitoring:
                 raise RuntimeError("a monitoring run is already active")
@@ -123,7 +123,7 @@ class SecurityConsole:
 
     def stop_monitor(self) -> Dict[str, Any]:
         if not self.robot:
-            raise RuntimeError("UI was started without --robot HOST:PORT")
+            raise RuntimeError("UI was started without --device HOST:PORT")
         with self.lock:
             result = self.robot.stop_monitor()
             self.monitoring = False
@@ -175,7 +175,7 @@ HTML = r"""<!doctype html>
 <section class="grid" id="metrics"></section>
 <section class="panel"><div class="panel-head"><div><div class="eyebrow">Control plane</div><h2>Run a controlled observation</h2></div><div id="state" class="muted">Connecting…</div></div><div class="help">Monitoring starts automatically when the robot is available. Send actions to snapshot evidence and refresh this screen. Clear the run when you are done testing.</div><div class="row"><select id="action" aria-label="Robot action" disabled><optgroup label="Lifecycle"><option value="boot" data-category="lifecycle">Boot</option><option value="shutdown" data-category="lifecycle">Shutdown</option></optgroup><optgroup label="Motion"><option value="stand" data-category="motion" selected>Stand</option><option value="move_forward" data-category="motion">Move forward</option><option value="move_backward" data-category="motion">Move backward</option><option value="rotate" data-category="motion">Rotate</option></optgroup><optgroup label="Perception"><option value="camera_stream" data-category="perception">Start camera stream</option><option value="camera_stop" data-category="perception">Stop camera stream</option><option value="microphone_start" data-category="perception">Start microphone</option></optgroup><optgroup label="Diagnostics"><option value="read_robot_state" data-category="diagnostics">Read robot state</option><option value="read_firmware_version" data-category="diagnostics">Read firmware version</option></optgroup></select><span id="action-category" class="pill">motion</span><button id="action-button" disabled onclick="executeAction()">Send action</button><button id="stop-button" class="danger-button" disabled onclick="stopRun()">Clear run</button></div><div id="control" class="muted"></div></section>
 <section class="panel"><div class="eyebrow">Investigation summary</div><h2>What needs attention?</h2><div id="findings" class="callout">Select a completed run to see findings.</div></section>
-<section class="panel"><div class="panel-head"><div><div class="eyebrow">Network boundary</div><h2>External communication</h2></div><div class="help">Unattributed or inbound flows deserve investigation. “Allowed” only describes the observed verdict; it does not mean expected.</div></div><div class="row"><label for="ip-entry" class="muted">Hide IPs</label><div id="ip-filter" class="tagbox"><input id="ip-entry" placeholder="Type an IP and press Enter"></div><span class="muted">The laptop address and loopback are pre-filled.</span></div><table><thead><tr><th>Direction</th><th>Destination</th><th>Port</th><th>Protocol</th><th>Action link</th><th>Bytes out</th><th>Verdict</th></tr></thead><tbody id="flows"></tbody></table></section>
+<section class="panel"><div class="panel-head"><div><div class="eyebrow">Network boundary</div><h2>External communication</h2></div><div class="help">Unattributed or inbound flows deserve investigation. “Allowed” only describes the observed verdict; it does not mean expected.</div></div><div class="row"><label for="ip-entry" class="muted">Hide IPs</label><div id="ip-filter" class="tagbox"><input id="ip-entry" placeholder="Type an IP and press Enter"></div><span class="muted">Controller/device host addresses and loopback are pre-filled.</span></div><table><thead><tr><th>Direction</th><th>Destination</th><th>Port</th><th>Protocol</th><th>Action link</th><th>Bytes out</th><th>Verdict</th></tr></thead><tbody id="flows"></tbody></table></section>
 <section class="panel"><div class="panel-head"><div><div class="eyebrow">Correlation</div><h2>Action timeline</h2></div><div class="help">Look for traffic outside action windows or without an action marker.</div></div><div id="timeline" class="timeline"></div></section>
 <section class="panel"><div class="panel-head"><div><div class="eyebrow">Trust in the evidence</div><h2>Collection coverage</h2></div><div class="help">A degraded layer is a limitation, not an empty result.</div></div><div id="coverage" class="coverage"></div></section>
 <section class="panel"><div class="panel-head"><div><div class="eyebrow">History</div><h2>Completed runs</h2></div><div class="help">Select a run to investigate it. External flows and unattributed traffic are counted below.</div></div><table><thead><tr><th>Run</th><th>Scenario</th><th>External flows</th><th>Unattributed</th><th>Bytes out</th></tr></thead><tbody id="runs"></tbody></table></section>
@@ -271,11 +271,12 @@ def serve(runs_root: Path, host: str = "127.0.0.1", port: int = 8080,
 def main() -> None:
     parser = argparse.ArgumentParser(description="boundary-audit security console")
     parser.add_argument("--runs-root", type=Path, default=Path("runs"))
-    parser.add_argument("--robot", help="Pi gRPC target, e.g. 192.168.1.168:50051")
+    parser.add_argument("--device", "--robot", dest="device",
+                        help="device-host gRPC target, e.g. 192.168.1.168:50051")
     parser.add_argument("--bind", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
-    serve(args.runs_root, args.bind, args.port, args.robot)
+    serve(args.runs_root, args.bind, args.port, args.device)
 
 
 if __name__ == "__main__":

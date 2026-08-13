@@ -1,15 +1,15 @@
 # Architecture
 
-The current working architecture puts the simulator/DUT and the monitoring
-agent on the same Raspberry Pi. A laptop acts as the controller and connects
-directly to the Pi's gRPC service over the LAN.
+The architecture puts the simulator/DUT and the monitoring agent on the same
+device host. A separate controller host connects directly to the device host's
+gRPC service over the network.
 
 ```text
- Laptop controller
+ Controller host
    └─ gRPC: health, actions, monitor lifecycle, artifact download
                   │
                   ▼
- Raspberry Pi / robot host
+ Device host
    ├─ DutSimulator or physical DUT adapter
    └─ MonitoringAgent
        ├─ dumpcap packet capture
@@ -25,28 +25,32 @@ directly to the Pi's gRPC service over the LAN.
         replay, normalization, analysis, policy
 ```
 
-The controller does not need to remain online during collection: the Pi owns
-the run directory and can finalize it locally. The laptop can download the
-completed artifacts through `GetArtifact`.
+The controller does not need to remain online during collection: the device host owns
+the run directory and can finalize it locally. While the controller host is connected,
+the security console downloads updated artifacts after each action through
+`GetArtifact`; the controller host can also download the completed bundle later.
 
 ## Collection and analysis
 
-At monitor start, the Pi creates a run directory and starts `dumpcap`. During
+At monitor start, the device host creates a run directory and starts `dumpcap`. During
 the run, gRPC actions are recorded in `api-results.jsonl` and receive automatic
-`API_CALL_BEGIN`/`API_CALL_END` markers. At stop, the Pi finalizes the PCAP,
-collects process/socket/firewall snapshots, actively resolves configured robot
-service hostnames, performs TLS handshakes for TLS endpoints, and replays the
-bundle into flows, layer status, analysis, and policy artifacts.
+`API_CALL_BEGIN`/`API_CALL_END` markers. After each action, the device host publishes
+the packets captured so far, actively probes configured endpoints, and replays
+the bundle into current flows, layer status, analysis, and policy artifacts.
+The final clear/stop operation flushes the capture, collects process/socket/
+firewall snapshots, writes the manifest and checksums, and closes the run.
 
 `dumpcap` writes to a temporary path because its capture privilege is dropped;
 the completed capture is copied into the user-owned run directory as
 `packets.pcap`. `tshark` is used when decoding packet-level DNS/TLS evidence is
 available. Active DNS/TLS records are explicitly labelled with their source in
-`dns.jsonl` and `tls.jsonl`.
+`dns.jsonl` and `tls.jsonl`. Flow attribution checks every packet in an
+aggregated flow against action windows, so long-lived and loopback connections
+can still be linked to later actions.
 
 The virtual backend remains available for deterministic CI. It produces the
-same normalized evidence and analysis contracts without requiring a Pi or Internet
-access.
+same normalized evidence and analysis contracts without requiring a device host
+or Internet access.
 
 The gRPC service currently uses insecure transport. It is suitable for a
 trusted test LAN; add TLS/authentication before exposing it beyond that scope.

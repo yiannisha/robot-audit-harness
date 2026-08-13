@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Control a robot-resident simulator and monitor remotely over gRPC."""
+"""Control a device-host simulator and monitor remotely over gRPC."""
 
 import argparse
 from pathlib import Path
@@ -16,7 +16,7 @@ ARTIFACTS = (
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("host", help="Pi hostname or IP address")
+    parser.add_argument("host", help="device-hostname or IP address")
     parser.add_argument("--port", type=int, default=50051)
     parser.add_argument("--output", type=Path, default=Path("remote-evidence"))
     parser.add_argument("--boot", action="store_true", help="run boot before the motion actions")
@@ -24,7 +24,7 @@ def main() -> None:
 
     client = DutGrpcClient("%s:%d" % (args.host, args.port))
     print("Robot:", client.health())
-    run = client.start_monitor("laptop_remote_demo")
+    run = client.start_monitor("controller_remote_demo")
     print("Monitoring run:", run["run_id"])
 
     actions = [("stand", "motion"), ("move_forward", "motion"),

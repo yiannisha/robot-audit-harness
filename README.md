@@ -6,11 +6,11 @@ behavior, and produces replayable evidence for later analysis.
 The working deployment is:
 
 ```text
- Laptop controller
+ Controller host
        │ direct LAN gRPC
        ▼
- Raspberry Pi
-   ├─ robot simulator or DUT
+ Device host
+   ├─ simulator or DUT
    └─ monitoring agent
        ├─ dumpcap PCAP capture
        ├─ DNS/TLS metadata
@@ -19,9 +19,10 @@ The working deployment is:
        └─ durable evidence bundle
 ```
 
-The Pi owns collection. The laptop starts actions and downloads completed
-artifacts. The virtual backend remains available for deterministic, offline
-CI and demos.
+The device host owns collection. The controller host sends actions over gRPC
+and downloads a fresh snapshot after every action; the controller does not
+need an SSH tunnel.
+The virtual backend remains available for deterministic, offline CI and demos.
 
 ## Install
 
@@ -29,18 +30,19 @@ CI and demos.
 uv sync --extra dev
 ```
 
-For Raspberry Pi/Debian collection tools:
+For a Debian-based device host, install the collection tools:
 
 ```bash
 ./scripts/pi/install.sh
 ```
 
 This installs and verifies `dumpcap`, `tcpdump`, and `tshark`, plus the
-optional firewall/DNS/AP tools. See [docs/raspberry-pi.md](docs/raspberry-pi.md).
+optional firewall/DNS/AP tools. See [docs/device-host.md](docs/device-host.md)
+and the [Raspberry Pi profile](docs/raspberry-pi.md).
 
 ## Virtual simulation demo
 
-This path needs no Pi or public Internet:
+This path needs no device host or public Internet:
 
 ```bash
 ./scripts/demo.sh
@@ -56,9 +58,9 @@ uv run python -m boundary_audit.cli run full_matrix --mode airgap
 uv run python -m boundary_audit.cli run full_matrix --mode enforce
 ```
 
-## Pi simulator and monitoring
+## Device host simulator and monitoring
 
-On the Pi, from a writable checkout directory:
+On the device host, from a writable checkout directory:
 
 ```bash
 uv sync
@@ -71,22 +73,22 @@ uv run python -m boundary_audit.grpc_sdk \
   --monitor-root "$PWD/runs"
 ```
 
-Do not use an assumed `/home/pi` path unless it exists and is writable by the
+Do not use an assumed home path unless it exists and is writable by the
 service account. The current gRPC service is intentionally simple and uses
 insecure transport; keep port `50051` on the trusted LAN.
 
-## Laptop controller demo
+## Controller host demo
 
-From the laptop, connect directly to the Pi's address:
+From the controller host, connect directly to the device host's address:
 
 ```bash
 uv run python scripts/remote_robot_demo.py \
-  192.168.1.168 \
+  <DEVICE-IP> \
   --output pi-evidence \
   --boot
 ```
 
-The script starts a monitored run, executes real simulator actions over gRPC,
+The script starts a monitored run, executes simulator actions over gRPC,
 stops collection, and downloads the bundle locally.
 
 Inspect the result:
@@ -111,7 +113,7 @@ possible interference rather than generic robot telemetry. It shows external
 and unattributed flows, DNS/TLS observations, action/event timing, layer
 coverage, recent runs, and guarded robot controls.
 
-To browse downloaded Pi evidence without controlling a robot:
+To browse downloaded device evidence without controlling a device:
 
 ```bash
 uv run python scripts/security_console.py \
@@ -121,23 +123,25 @@ uv run python scripts/security_console.py \
 
 Open `http://127.0.0.1:8080`.
 
-To control the Pi directly from the console:
+To control the device host directly from the console:
 
 ```bash
 uv run python scripts/security_console.py \
   --runs-root pi-evidence \
-  --robot 192.168.1.168:50051 \
+  --device <DEVICE-IP>:50051 \
   --port 8080
 ```
 
-The console starts monitoring automatically when the robot is available. Each
-action is recorded, the active evidence is refreshed, and the console updates
-the investigation view immediately; you do not need to stop the run to inspect
-the latest action. Clear the run when you are done so packet capture and the
-final evidence manifest can be closed cleanly; clearing also resets the active
-investigation view while preserving the run in History. The External
-Communication panel has an IP filter pre-filled with the controller laptop's
-local address and loopback addresses, which can be edited when needed.
+The console starts monitoring automatically when the robot is available and
+keeps a session active. The control panel stays disabled until both the robot
+connection and monitoring session are confirmed. Each action is recorded, the
+active evidence is refreshed, and the investigation view updates immediately.
+Clear the run when you are done; the evidence is finalized, the active view is
+reset, and a new monitoring session starts automatically. The completed run
+remains in History. The External Communication panel has removable IP filter
+tags pre-filled with the controller-host address, device-host address, and
+loopback addresses.
+Remove a tag to inspect that traffic or type an IP and press Enter to add one.
 Unattributed flows, unsolicited inbound traffic, new destinations, blocked
 traffic, and degraded capture layers are intentionally prominent.
 
@@ -157,7 +161,7 @@ The repository also contains:
 - flow normalization, attribution, and policy generation;
 - gRPC control and artifact APIs;
 - nftables ownership abstractions;
-- Raspberry Pi installation and deployment guidance;
+- device-host installation and deployment guidance;
 - tests for virtual runs, gRPC, real loopback capture, and evidence bundles.
 
 See [docs/architecture.md](docs/architecture.md),
