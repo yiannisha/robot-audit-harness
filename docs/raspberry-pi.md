@@ -62,6 +62,6 @@ downloads the evidence bundle.
 
 The default `boot` action uses `pool.ntp.org` and `example.com` endpoints. It
 can therefore produce DNS, UDP, and TLS traffic when the Pi has Internet
-access. `network_errors` in the action result reports connection failures.
+access. `network_errors` in the action result records connection failures.
 
 See [results.md](results.md) for artifact and status interpretation.

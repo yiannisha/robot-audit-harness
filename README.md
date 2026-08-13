@@ -46,12 +46,6 @@ This path needs no Pi or public Internet:
 ./scripts/demo.sh
 ```
 
-Open a generated report:
-
-```bash
-open runs/*/report.html
-```
-
 Useful commands:
 
 ```bash
@@ -125,7 +119,6 @@ The repository also contains:
 - scenario/action models and repeated baseline comparison;
 - flow normalization, attribution, and policy generation;
 - gRPC control and artifact APIs;
-- HTML/text reports and a web dashboard;
 - nftables ownership abstractions;
 - Raspberry Pi installation and deployment guidance;
 - tests for virtual runs, gRPC, real loopback capture, and evidence bundles.

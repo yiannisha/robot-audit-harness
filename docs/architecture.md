@@ -22,7 +22,7 @@ directly to the Pi's gRPC service over the LAN.
        └─ durable evidence bundle
                   │
                   ▼
-        replay, normalization, analysis, reports
+        replay, normalization, analysis, policy
 ```
 
 The controller does not need to remain online during collection: the Pi owns
@@ -45,7 +45,7 @@ available. Active DNS/TLS records are explicitly labelled with their source in
 `dns.jsonl` and `tls.jsonl`.
 
 The virtual backend remains available for deterministic CI. It produces the
-same normalized evidence/report contracts without requiring a Pi or Internet
+same normalized evidence and analysis contracts without requiring a Pi or Internet
 access.
 
 The gRPC service currently uses insecure transport. It is suitable for a
