@@ -35,7 +35,8 @@ the security console downloads updated artifacts after each action through
 At monitor start, the device host creates a run directory and starts `dumpcap`. During
 the run, gRPC actions are recorded in `api-results.jsonl` and receive automatic
 `API_CALL_BEGIN`/`API_CALL_END` markers. After each action, the device host publishes
-the packets captured so far, actively probes configured endpoints, and replays
+the packets captured so far, probes only endpoints associated with that action,
+and replays
 the bundle into current flows, layer status, analysis, and policy artifacts.
 The final clear/stop operation flushes the capture, collects process/socket/
 firewall snapshots, writes the manifest and checksums, and closes the run.

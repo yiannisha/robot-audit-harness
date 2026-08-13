@@ -61,8 +61,6 @@ class MonitoringSession:
         if self.started:
             self.mark_event("MONITOR_CANCEL" if cancelled else "MONITOR_STOP")
             self.capture.stop()
-            probe_endpoints(self.metadata.get("network_endpoints", []),
-                            self.directory / "dns.jsonl", self.directory / "tls.jsonl")
             if self.capture.recovered:
                 self.metadata["capture_recovery"] = True
             snapshot_processes(self.directory / "processes.jsonl", "stop")
@@ -79,8 +77,6 @@ class MonitoringSession:
     def snapshot(self) -> Dict[str, Any]:
         """Refresh replayable metadata while packet capture continues."""
         self.capture.snapshot()
-        probe_endpoints(self.metadata.get("network_endpoints", []),
-                        self.directory / "dns.jsonl", self.directory / "tls.jsonl")
         replay_run(self.directory)
         return self.status()
 
@@ -143,6 +139,13 @@ class MonitoringAgent:
         if not self.session:
             raise RuntimeError("no monitoring session")
         return self.session.snapshot()
+
+    def probe_action_endpoints(self, endpoints: Any) -> None:
+        """Probe only endpoints associated with the action being executed."""
+        if not self.session or not self.session.started:
+            return
+        probe_endpoints(endpoints, self.session.directory / "dns.jsonl",
+                        self.session.directory / "tls.jsonl")
 
     def mark_event(self, event_type: str, scenario_id: str = "unattributed",
                    details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

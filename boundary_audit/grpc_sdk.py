@@ -68,6 +68,7 @@ class DutGrpcService:
                                                                     "category": action.category.value})
         result = model_dump(self.dut.execute(action))
         if self.monitor.session and self.monitor.session.started:
+            self.monitor.probe_action_endpoints(self._endpoints_for_action(action.name))
             self.monitor.session.record_api({"request_id": uuid.uuid4().hex, "action": action.name,
                                              "category": action.category.value, "parameters": action.parameters,
                                              "started_epoch": started, "ended_epoch": time.time(),
@@ -75,6 +76,16 @@ class DutGrpcService:
             self.monitor.mark_event("API_CALL_END", scenario, {"action": action.name,
                                                                   "ok": result.get("ok", False)})
         return result
+
+    def _endpoints_for_action(self, action: str) -> list[Dict[str, Any]]:
+        """Return only simulator services that belong to this action."""
+        if not getattr(self.dut, "network_enabled", False):
+            return []
+        service_names = self.dut._services_for(action)
+        return [{"host": self.dut.endpoints[name].host,
+                 "port": self.dut.endpoints[name].port,
+                 "tls": self.dut.endpoints[name].tls}
+                for name in service_names if name in self.dut.endpoints]
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
         metadata = dict(request.get("metadata", {}))

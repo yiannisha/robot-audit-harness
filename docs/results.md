@@ -21,7 +21,7 @@ The important files are:
 | `manifest.json` | Bundle schema, file sizes, and SHA-256 checksums |
 
 During an active run, the device host exposes a replayable snapshot after each action.
-Those snapshots contain the current `flows.json`, `layers.json`, DNS/TLS
+Those snapshots contain the current `flows.json`, `layers.json`, action-scoped DNS/TLS
 metadata, and API/event records. The final clear/stop operation adds the fully
 flushed capture, host stop snapshots, manifest, and checksums.
 
