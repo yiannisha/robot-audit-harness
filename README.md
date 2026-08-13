@@ -134,7 +134,10 @@ The console requires monitoring to be started before it will send actions. Each
 action is recorded, the active evidence is refreshed, and the console updates
 the investigation view immediately; you do not need to stop the run to inspect
 the latest action. Finish the run when you are done so packet capture and the
-final evidence manifest can be closed cleanly.
+final evidence manifest can be closed cleanly; finishing also clears the active
+investigation view while preserving the run in History. The External
+Communication panel has an IP filter pre-filled with the controller laptop's
+local address and loopback addresses, which can be edited when needed.
 Unattributed flows, unsolicited inbound traffic, new destinations, blocked
 traffic, and degraded capture layers are intentionally prominent.
 
