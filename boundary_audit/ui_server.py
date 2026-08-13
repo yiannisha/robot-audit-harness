@@ -88,14 +88,26 @@ class SecurityConsole:
         if not self.robot:
             raise RuntimeError("UI was started without --robot HOST:PORT")
         with self.lock:
-            if not self.monitoring:
-                raise RuntimeError("start monitoring before executing robot actions")
+            self._ensure_monitoring_locked()
             result = self.robot.execute(str(request["action"]), str(request.get("category", "background")),
                                         dict(request.get("parameters", {})))
             if self.active_run_id:
                 self.robot.snapshot_monitor()
                 self._download_run(self.active_run_id)
             return result
+
+    def _ensure_monitoring_locked(self) -> None:
+        """Synchronize the UI flag with the Pi before allowing an action."""
+        if not self.robot:
+            raise RuntimeError("UI was started without --robot HOST:PORT")
+        status = self.robot.monitor_status()
+        if status.get("status") == "running":
+            self.monitoring = True
+            self.active_run_id = str(status.get("run_id", "")) or self.active_run_id
+            return
+        result = self.robot.start_monitor("ui_security_run", "observe")
+        self.monitoring = True
+        self.active_run_id = str(result["run_id"])
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
         if not self.robot:
@@ -145,6 +157,11 @@ class SecurityConsole:
                     self.active_run_id = str(result["monitor"].get("run_id", "")) or self.active_run_id
                     result["monitoring"] = True
                     result["active_run_id"] = self.active_run_id
+                else:
+                    self.monitoring = False
+                    self.active_run_id = None
+                    result["monitoring"] = False
+                    result["active_run_id"] = None
             except Exception as error:
                 result["robot_error"] = str(error)
         return result
