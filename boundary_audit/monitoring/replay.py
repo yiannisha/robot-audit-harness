@@ -17,11 +17,13 @@ def replay_run(run_dir: Path) -> Path:
     (run_dir / "flows.json").write_text(json.dumps(flows, indent=2), encoding="utf-8")
     (run_dir / "analysis.json").write_text(json.dumps(analysis, indent=2), encoding="utf-8")
     (run_dir / "generated-policy.nft").write_text(generate_policy(objects), encoding="utf-8")
+    dns_records = sum(1 for _ in (run_dir / "dns.jsonl").read_text().splitlines())
+    tls_records = sum(1 for _ in (run_dir / "tls.jsonl").read_text().splitlines())
     layers = {
         "raw_packets": {"status": "collected" if (run_dir / "packets.pcap").exists() and (run_dir / "packets.pcap").stat().st_size > 24 else "failed", "pcap": "packets.pcap", "recovery": metadata.get("capture_recovery", False)},
         "flows": {"status": "collected", "count": len(flows)},
-        "dns": {"status": decoded["dns"], "count": decoded.get("dns_count", 0)},
-        "tls": {"status": decoded["tls"], "count": decoded.get("tls_count", 0)},
+        "dns": {"status": "collected" if dns_records else decoded["dns"], "count": dns_records or decoded.get("dns_count", 0)},
+        "tls": {"status": "collected" if tls_records else decoded["tls"], "count": tls_records or decoded.get("tls_count", 0)},
         "firewall": {"status": "collected" if (run_dir / "firewall.jsonl").read_text().strip() else "not_collected", "count": sum(1 for _ in (run_dir / "firewall.jsonl").read_text().splitlines())},
         "processes": {"status": "collected", "count": sum(1 for _ in (run_dir / "processes.jsonl").read_text().splitlines())},
         "sockets": {"status": "collected", "count": sum(1 for _ in (run_dir / "sockets.jsonl").read_text().splitlines())},

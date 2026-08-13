@@ -1,8 +1,10 @@
 """Best-effort host-side layer collectors used by a monitoring session."""
 
 import json
+import socket
 import subprocess
 import time
+import ssl
 from pathlib import Path
 from typing import Any, Dict
 
@@ -96,3 +98,33 @@ def decode_with_tshark(pcap: Path, dns_path: Path, tls_path: Path) -> Dict[str, 
         result[layer] = "collected" if count else "not_observed"
         result[layer + "_count"] = count
     return result
+
+
+def probe_endpoints(endpoints: Any, dns_path: Path, tls_path: Path) -> None:
+    """Collect active DNS/TLS metadata for configured robot services."""
+    for endpoint in endpoints or []:
+        host = str(endpoint.get("host", ""))
+        port = int(endpoint.get("port", 443))
+        if not host:
+            continue
+        try:
+            addresses = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+            records = sorted({address[4][0] for address in addresses})
+            _append(dns_path, {"timestamp": time.time(), "query_name": host,
+                               "query_type": "A/AAAA", "response_records": records,
+                               "source": "active-resolver"})
+        except OSError:
+            continue
+        if not bool(endpoint.get("tls", False)):
+            continue
+        try:
+            raw = socket.create_connection((host, port), timeout=5)
+            context = ssl.create_default_context()
+            connection = context.wrap_socket(raw, server_hostname=host)
+            _append(tls_path, {"timestamp": time.time(), "sni": host,
+                               "tls_version": connection.version(),
+                               "cipher": connection.cipher()[0] if connection.cipher() else None,
+                               "source": "active-tls-handshake"})
+            connection.close()
+        except (OSError, ssl.SSLError):
+            continue

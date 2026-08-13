@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from ..capture.manager import CaptureManager
-from .collectors import snapshot_firewall, snapshot_processes, snapshot_sockets
+from .collectors import probe_endpoints, snapshot_firewall, snapshot_processes, snapshot_sockets
 from .replay import replay_run
 
 
@@ -61,6 +61,8 @@ class MonitoringSession:
         if self.started:
             self.mark_event("MONITOR_CANCEL" if cancelled else "MONITOR_STOP")
             self.capture.stop()
+            probe_endpoints(self.metadata.get("network_endpoints", []),
+                            self.directory / "dns.jsonl", self.directory / "tls.jsonl")
             if self.capture.recovered:
                 self.metadata["capture_recovery"] = True
             snapshot_processes(self.directory / "processes.jsonl", "stop")

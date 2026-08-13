@@ -76,8 +76,13 @@ class DutGrpcService:
         return result
 
     def start_monitor(self, request: Dict[str, Any]) -> Dict[str, Any]:
+        metadata = dict(request.get("metadata", {}))
+        metadata.setdefault("network_endpoints", [
+            {"host": endpoint.host, "port": endpoint.port, "tls": endpoint.tls}
+            for endpoint in self.dut.endpoints.values()
+        ])
         return self.monitor.start(str(request.get("scenario", "remote")), str(request.get("mode", "observe")),
-                                  dict(request.get("metadata", {})))
+                                  metadata)
 
     def mark_event(self, request: Dict[str, Any]) -> Dict[str, Any]:
         return self.monitor.mark_event(str(request["type"]), str(request.get("scenario_id", "unattributed")),

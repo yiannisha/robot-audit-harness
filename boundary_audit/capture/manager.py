@@ -6,6 +6,8 @@ import os
 import socket
 import ssl
 import struct
+import shutil
+import uuid
 import time
 from pathlib import Path
 from typing import Optional
@@ -23,6 +25,7 @@ class CaptureManager:
         self._log_handle = None
         self.process: Optional[subprocess.Popen] = None
         self.recovered = False
+        self._capture_path: Optional[Path] = None
 
     def start(self) -> None:
         self.output.parent.mkdir(parents=True, exist_ok=True)
@@ -31,15 +34,26 @@ class CaptureManager:
         # A large finite count gives tcpdump a normal completion path as well
         # as an interrupt path, and prevents an accidentally orphaned capture
         # from running forever after an agent crash.
-        command = ["tcpdump", "-U", "-i", self.interface, "-nn", "-s", "0", "-c", str(self.packet_limit), "-w", str(self.output)]
+        use_dumpcap = shutil.which("dumpcap") is not None
+        if use_dumpcap:
+            # dumpcap drops privileges after opening the capture device. Keep
+            # its temporary output in /tmp, where the dumpcap group can write,
+            # then move the completed file into the user-owned run directory.
+            self._capture_path = Path("/tmp") / ("boundary-audit-%s.pcapng" % uuid.uuid4().hex)
+            command = ["dumpcap", "-i", self.interface, "-w", str(self._capture_path)]
+        else:
+            self._capture_path = self.output
+            command = ["tcpdump", "-U", "-i", self.interface, "-nn", "-s", "0", "-c", str(self.packet_limit), "-w", str(self.output)]
         runner = command
         try:
             use_sudo = subprocess.run(["sudo", "-n", "true"], stdout=subprocess.DEVNULL,
                                       stderr=subprocess.DEVNULL, check=False).returncode == 0
         except OSError:
             use_sudo = False
-        if use_sudo:
+        if use_sudo and not use_dumpcap:
             runner = ["sudo", "-n"] + command[:1] + ["-Z", "root"] + command[1:]
+        elif use_sudo:
+            runner = ["sudo", "-n"] + command
         self.process = subprocess.Popen(runner, stdout=log, stderr=subprocess.STDOUT)
         # Raspberry Pi deployments commonly grant capture through a narrowly
         # scoped sudo rule.  Retry only after tcpdump itself reports a failed
@@ -70,6 +84,7 @@ class CaptureManager:
                     self._log_handle.close()
                     self._log_handle = None
                 self.process = None
+                self._finalize_capture()
                 return
             # tcpdump flushes its pcap on SIGINT; SIGTERM can leave only the
             # global header even though packets were received by the kernel.
@@ -112,8 +127,20 @@ class CaptureManager:
                 self._log_handle.close()
                 self._log_handle = None
             self.process = None
+            self._finalize_capture()
             if self.output.exists() and self.output.stat().st_size <= 24:
                 self._recover_minimal_capture()
+
+    def _finalize_capture(self) -> None:
+        if self._capture_path and self._capture_path.exists() and self._capture_path != self.output:
+            # dumpcap's dropped-privilege writer may create a root/wireshark
+            # owned file. Copy it into the user-owned run directory, then
+            # remove the temporary file with the same narrowly scoped sudo
+            # mechanism used to start capture.
+            subprocess.run(["sudo", "-n", "chmod", "a+r", str(self._capture_path)], check=True)
+            shutil.copyfile(str(self._capture_path), str(self.output))
+            subprocess.run(["sudo", "-n", "rm", "-f", str(self._capture_path)], check=False)
+        self._capture_path = None
 
     def _recover_minimal_capture(self) -> None:
         """Recover a valid small PCAP when an interrupted tcpdump lost its buffer.
